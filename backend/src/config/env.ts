@@ -16,7 +16,8 @@ const envSchema = z.object({
   COOKIE_SAME_SITE: z.enum(["strict", "lax", "none"]),
   UPLOAD_DIR: z.string().min(1, "UPLOAD_DIR is required"),
   MAX_IMAGE_SIZE_MB: z.coerce.number().positive(),
-  MAX_VIDEO_SIZE_MB: z.coerce.number().positive()
+  MAX_VIDEO_SIZE_MB: z.coerce.number().positive(),
+  DATABASE_URL: z.string().url("DATABASE_URL must be a valid PostgreSQL connection URL")
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
