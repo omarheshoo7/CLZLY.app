@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import { env } from "./config/env";
 import healthRoutes from "./routes/health.routes";
 import devRoutes from "./routes/dev.routes";
+import authRoutes from "./routes/auth.routes";
 import { errorMiddleware } from "./middleware/error.middleware";
 import { requestLogger } from "./utils/logger";
 
@@ -20,6 +21,7 @@ app.use(
 app.use(requestLogger);
 
 app.use("/api/health", healthRoutes);
+app.use("/api/auth", authRoutes);
 
 if (env.NODE_ENV === "development") {
   app.use("/api/dev", devRoutes);
