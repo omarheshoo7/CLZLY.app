@@ -15,4 +15,10 @@ export const registerSchema = z.object({
     .regex(/[0-9]/, "Password must contain at least one number")
 });
 
+export const loginSchema = z.object({
+  email: z.string().email("Email must be a valid email address").toLowerCase(),
+  password: z.string().min(1, "Password is required")
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
+export type LoginInput = z.infer<typeof loginSchema>;

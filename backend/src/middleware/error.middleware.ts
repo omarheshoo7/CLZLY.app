@@ -15,12 +15,13 @@ export const errorMiddleware: ErrorRequestHandler = (error, _req, res, _next) =>
 
   const statusCode = error instanceof AppError ? error.statusCode : 500;
   const message = error instanceof AppError ? error.message : "Internal server error";
+  const shouldShowStack = env.NODE_ENV === "development" && !(error instanceof AppError);
 
   logger.error(error instanceof Error ? error.stack ?? error.message : String(error));
 
   res.status(statusCode).json({
     status: "error",
     message,
-    ...(env.NODE_ENV === "development" && error instanceof Error ? { stack: error.stack } : {})
+    ...(shouldShowStack && error instanceof Error ? { stack: error.stack } : {})
   });
 };
