@@ -237,3 +237,29 @@ export async function refreshAccessToken(rawRefreshToken: string | undefined, me
     refreshTokenExpiresAt: newRefreshToken.refreshTokenExpiresAt
   };
 }
+
+export async function logoutUser(rawRefreshToken: string | undefined) {
+  if (!rawRefreshToken) {
+    return;
+  }
+
+  const refreshTokenHash = hashToken(rawRefreshToken);
+  const existingRefreshToken = await prisma.refreshToken.findUnique({
+    where: {
+      tokenHash: refreshTokenHash
+    }
+  });
+
+  if (!existingRefreshToken || existingRefreshToken.revokedAt) {
+    return;
+  }
+
+  await prisma.refreshToken.update({
+    where: {
+      id: existingRefreshToken.id
+    },
+    data: {
+      revokedAt: new Date()
+    }
+  });
+}
