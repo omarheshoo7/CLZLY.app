@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { login, register } from "../controllers/auth.controller";
+import { login, refresh, register } from "../controllers/auth.controller";
 import { validateRequest } from "../middleware/validate.middleware";
 import { loginSchema, registerSchema } from "../schemas/auth.schema";
 
@@ -20,5 +20,7 @@ router.post(
   }),
   login
 );
+
+router.post("/refresh", refresh);
 
 export default router;

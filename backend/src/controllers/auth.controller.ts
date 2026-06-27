@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { env } from "../config/env";
-import { loginUser, registerUser } from "../services/auth.service";
+import { loginUser, refreshAccessToken, registerUser } from "../services/auth.service";
 
 function setRefreshTokenCookie(res: Response, refreshToken: string, expiresAt: Date) {
   res.cookie(env.REFRESH_COOKIE_NAME, refreshToken, {
@@ -48,6 +48,28 @@ export async function login(req: Request, res: Response, next: NextFunction) {
       message: "User logged in successfully",
       data: {
         user: result.user,
+        accessToken: result.accessToken
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function refresh(req: Request, res: Response, next: NextFunction) {
+  try {
+    const rawRefreshToken = req.cookies?.[env.REFRESH_COOKIE_NAME];
+    const result = await refreshAccessToken(rawRefreshToken, {
+      userAgent: req.headers["user-agent"],
+      ipAddress: req.ip
+    });
+
+    setRefreshTokenCookie(res, result.refreshToken, result.refreshTokenExpiresAt);
+
+    res.status(200).json({
+      status: "success",
+      message: "Access token refreshed successfully",
+      data: {
         accessToken: result.accessToken
       }
     });

@@ -31,11 +31,26 @@ function removePasswordHash(user: User): SafeUser {
 }
 
 async function createRefreshTokenForUser(userId: string, metadata: AuthRequestMetadata) {
+  const refreshToken = createRefreshTokenData(userId, metadata);
+
+  await prisma.refreshToken.create({
+    data: refreshToken.data
+  });
+
+  return {
+    refreshToken: refreshToken.rawRefreshToken,
+    refreshTokenExpiresAt: refreshToken.refreshTokenExpiresAt
+  };
+}
+
+function createRefreshTokenData(userId: string, metadata: AuthRequestMetadata) {
   const rawRefreshToken = createRefreshToken();
   const refreshTokenHash = hashToken(rawRefreshToken);
   const refreshTokenExpiresAt = getRefreshTokenExpiresAt();
 
-  await prisma.refreshToken.create({
+  return {
+    rawRefreshToken,
+    refreshTokenExpiresAt,
     data: {
       userId,
       tokenHash: refreshTokenHash,
@@ -43,11 +58,6 @@ async function createRefreshTokenForUser(userId: string, metadata: AuthRequestMe
       userAgent: metadata.userAgent,
       ipAddress: metadata.ipAddress
     }
-  });
-
-  return {
-    refreshToken: rawRefreshToken,
-    refreshTokenExpiresAt
   };
 }
 
@@ -150,5 +160,80 @@ export async function loginUser(input: LoginInput, metadata: AuthRequestMetadata
     accessToken,
     refreshToken,
     refreshTokenExpiresAt
+  };
+}
+
+export async function refreshAccessToken(rawRefreshToken: string | undefined, metadata: AuthRequestMetadata) {
+  if (!rawRefreshToken) {
+    throw new AppError("Refresh token is required", 401);
+  }
+
+  const refreshTokenHash = hashToken(rawRefreshToken);
+
+  const existingRefreshToken = await prisma.refreshToken.findUnique({
+    where: {
+      tokenHash: refreshTokenHash
+    },
+    include: {
+      user: true
+    }
+  });
+
+  if (!existingRefreshToken) {
+    throw new AppError("Invalid refresh token", 401);
+  }
+
+  if (existingRefreshToken.revokedAt) {
+    await prisma.refreshToken.updateMany({
+      where: {
+        userId: existingRefreshToken.userId,
+        revokedAt: null
+      },
+      data: {
+        revokedAt: new Date()
+      }
+    });
+
+    throw new AppError("Refresh token was reused. Please log in again.", 401);
+  }
+
+  if (existingRefreshToken.expiresAt < new Date()) {
+    throw new AppError("Refresh token has expired", 401);
+  }
+
+  const user = existingRefreshToken.user;
+
+  if (!user || user.deletedAt) {
+    throw new AppError("Invalid refresh token", 401);
+  }
+
+  if (user.isDisabled) {
+    throw new AppError("Account has been disabled", 403);
+  }
+
+  const newRefreshToken = createRefreshTokenData(user.id, metadata);
+
+  await prisma.$transaction(async (transaction) => {
+    const createdRefreshToken = await transaction.refreshToken.create({
+      data: newRefreshToken.data
+    });
+
+    await transaction.refreshToken.update({
+      where: {
+        id: existingRefreshToken.id
+      },
+      data: {
+        revokedAt: new Date(),
+        replacedByTokenId: createdRefreshToken.id
+      }
+    });
+  });
+
+  const accessToken = createAccessTokenForUser(user);
+
+  return {
+    accessToken,
+    refreshToken: newRefreshToken.rawRefreshToken,
+    refreshTokenExpiresAt: newRefreshToken.refreshTokenExpiresAt
   };
 }
