@@ -263,3 +263,21 @@ export async function logoutUser(rawRefreshToken: string | undefined) {
     }
   });
 }
+
+export async function getCurrentUser(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: {
+      id: userId
+    }
+  });
+
+  if (!user || user.deletedAt) {
+    throw new AppError("Invalid access token", 401);
+  }
+
+  if (user.isDisabled) {
+    throw new AppError("Account has been disabled", 403);
+  }
+
+  return removePasswordHash(user);
+}

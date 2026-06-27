@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { env } from "../config/env";
-import { loginUser, logoutUser, refreshAccessToken, registerUser } from "../services/auth.service";
+import { getCurrentUser, loginUser, logoutUser, refreshAccessToken, registerUser } from "../services/auth.service";
+import { AppError } from "../utils/errors";
 
 const refreshCookieOptions = {
   httpOnly: true,
@@ -96,6 +97,26 @@ export async function logout(req: Request, res: Response, next: NextFunction) {
     res.status(200).json({
       status: "success",
       message: "Logged out successfully"
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function me(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user) {
+      throw new AppError("Authorization is required", 401);
+    }
+
+    const user = await getCurrentUser(req.user.userId);
+
+    res.status(200).json({
+      status: "success",
+      message: "Current user retrieved successfully",
+      data: {
+        user
+      }
     });
   } catch (error) {
     next(error);
