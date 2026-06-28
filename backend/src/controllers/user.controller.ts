@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../utils/errors";
-import { getUserProfile } from "../services/user.service";
-import type { UserProfileParams } from "../schemas/user.schema";
+import { getUserProfile, updateCurrentUserProfile } from "../services/user.service";
+import type { UpdateCurrentUserProfileInput, UserProfileParams } from "../schemas/user.schema";
 
 export async function getProfile(req: Request, res: Response, next: NextFunction) {
   try {
@@ -18,6 +18,29 @@ export async function getProfile(req: Request, res: Response, next: NextFunction
       status: "success",
       message: "User profile retrieved successfully",
       data: profile
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateMyProfile(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user) {
+      throw new AppError("Authorization is required", 401);
+    }
+
+    const user = await updateCurrentUserProfile({
+      userId: req.user.userId,
+      data: req.body as UpdateCurrentUserProfileInput
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Current user profile updated successfully",
+      data: {
+        user
+      }
     });
   } catch (error) {
     next(error);

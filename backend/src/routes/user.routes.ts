@@ -1,10 +1,19 @@
 import { Router } from "express";
-import { getProfile } from "../controllers/user.controller";
+import { getProfile, updateMyProfile } from "../controllers/user.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { validateRequest } from "../middleware/validate.middleware";
-import { userProfileParamsSchema } from "../schemas/user.schema";
+import { updateCurrentUserProfileSchema, userProfileParamsSchema } from "../schemas/user.schema";
 
 const router = Router();
+
+router.patch(
+  "/me",
+  authMiddleware,
+  validateRequest({
+    body: updateCurrentUserProfileSchema
+  }),
+  updateMyProfile
+);
 
 router.get(
   "/:username",
