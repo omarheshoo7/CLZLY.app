@@ -37,5 +37,12 @@ export const updateCurrentUserProfileSchema = z
     message: "At least one profile field is required"
   });
 
+export const updateCurrentUserPrivacySchema = z
+  .object({
+    isPrivate: z.boolean()
+  })
+  .strict();
+
 export type UserProfileParams = z.infer<typeof userProfileParamsSchema>;
 export type UpdateCurrentUserProfileInput = z.infer<typeof updateCurrentUserProfileSchema>;
+export type UpdateCurrentUserPrivacyInput = z.infer<typeof updateCurrentUserPrivacySchema>;

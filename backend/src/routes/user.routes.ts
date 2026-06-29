@@ -1,10 +1,23 @@
 import { Router } from "express";
-import { getProfile, updateMyProfile } from "../controllers/user.controller";
+import { getProfile, updateMyPrivacy, updateMyProfile } from "../controllers/user.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { validateRequest } from "../middleware/validate.middleware";
-import { updateCurrentUserProfileSchema, userProfileParamsSchema } from "../schemas/user.schema";
+import {
+  updateCurrentUserPrivacySchema,
+  updateCurrentUserProfileSchema,
+  userProfileParamsSchema
+} from "../schemas/user.schema";
 
 const router = Router();
+
+router.patch(
+  "/me/privacy",
+  authMiddleware,
+  validateRequest({
+    body: updateCurrentUserPrivacySchema
+  }),
+  updateMyPrivacy
+);
 
 router.patch(
   "/me",

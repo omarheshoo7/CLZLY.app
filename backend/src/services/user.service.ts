@@ -1,5 +1,9 @@
 import { prisma } from "../prisma";
-import type { UpdateCurrentUserProfileInput, UserProfileParams } from "../schemas/user.schema";
+import type {
+  UpdateCurrentUserPrivacyInput,
+  UpdateCurrentUserProfileInput,
+  UserProfileParams
+} from "../schemas/user.schema";
 import { AppError } from "../utils/errors";
 
 type GetUserProfileInput = {
@@ -10,6 +14,11 @@ type GetUserProfileInput = {
 type UpdateCurrentUserProfileServiceInput = {
   userId: string;
   data: UpdateCurrentUserProfileInput;
+};
+
+type UpdateCurrentUserPrivacyServiceInput = {
+  userId: string;
+  data: UpdateCurrentUserPrivacyInput;
 };
 
 export async function getUserProfile({ params, viewerUserId }: GetUserProfileInput) {
@@ -50,6 +59,41 @@ export async function updateCurrentUserProfile({ userId, data }: UpdateCurrentUs
       id: userId
     },
     data,
+    select: {
+      id: true,
+      username: true,
+      email: true,
+      displayName: true,
+      bio: true,
+      profilePictureUrl: true,
+      isPrivate: true,
+      isAdmin: true,
+      isDisabled: true,
+      deletedAt: true,
+      createdAt: true,
+      updatedAt: true
+    }
+  });
+
+  if (user.deletedAt) {
+    throw new AppError("Invalid access token", 401);
+  }
+
+  if (user.isDisabled) {
+    throw new AppError("Account has been disabled", 403);
+  }
+
+  return user;
+}
+
+export async function updateCurrentUserPrivacy({ userId, data }: UpdateCurrentUserPrivacyServiceInput) {
+  const user = await prisma.user.update({
+    where: {
+      id: userId
+    },
+    data: {
+      isPrivate: data.isPrivate
+    },
     select: {
       id: true,
       username: true,
