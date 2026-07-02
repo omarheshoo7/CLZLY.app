@@ -1,5 +1,7 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../prisma";
 import type {
+  FollowUserParams,
   UpdateCurrentUserPrivacyInput,
   UpdateCurrentUserProfileInput,
   UserProfileParams,
@@ -9,6 +11,11 @@ import { AppError } from "../utils/errors";
 
 type SearchUsersInput = {
   query: UserSearchQuery;
+};
+
+type FollowUserInput = {
+  params: FollowUserParams;
+  followerUserId: string;
 };
 
 type GetUserProfileInput = {
@@ -58,6 +65,73 @@ export async function searchUsers({ query }: SearchUsersInput) {
     orderBy: [{ createdAt: "desc" }, { id: "asc" }],
     take: 10
   });
+}
+
+export async function followUser({ params, followerUserId }: FollowUserInput) {
+  const targetUser = await prisma.user.findUnique({
+    where: {
+      username: params.username
+    },
+    select: {
+      id: true,
+      isPrivate: true,
+      isDisabled: true,
+      deletedAt: true
+    }
+  });
+
+  if (!targetUser || targetUser.deletedAt || targetUser.isDisabled) {
+    throw new AppError("User profile not found", 404);
+  }
+
+  if (targetUser.id === followerUserId) {
+    throw new AppError("You cannot follow yourself", 400);
+  }
+
+  const existingFollow = await prisma.follow.findUnique({
+    where: {
+      followerId_followingId: {
+        followerId: followerUserId,
+        followingId: targetUser.id
+      }
+    },
+    select: {
+      id: true,
+      status: true
+    }
+  });
+
+  if (existingFollow) {
+    if (existingFollow.status === "PENDING") {
+      throw new AppError("Follow request is already pending", 409);
+    }
+
+    throw new AppError("You are already following this user", 409);
+  }
+
+  try {
+    return await prisma.follow.create({
+      data: {
+        followerId: followerUserId,
+        followingId: targetUser.id,
+        status: targetUser.isPrivate ? "PENDING" : "ACCEPTED"
+      },
+      select: {
+        id: true,
+        followerId: true,
+        followingId: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new AppError("Follow relationship already exists", 409);
+    }
+
+    throw error;
+  }
 }
 
 export async function getUserProfile({ params, viewerUserId }: GetUserProfileInput) {

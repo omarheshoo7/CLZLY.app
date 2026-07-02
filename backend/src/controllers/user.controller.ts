@@ -1,7 +1,14 @@
 import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../utils/errors";
-import { getUserProfile, searchUsers, updateCurrentUserPrivacy, updateCurrentUserProfile } from "../services/user.service";
+import {
+  followUser as createFollowRelationship,
+  getUserProfile,
+  searchUsers,
+  updateCurrentUserPrivacy,
+  updateCurrentUserProfile
+} from "../services/user.service";
 import type {
+  FollowUserParams,
   UpdateCurrentUserPrivacyInput,
   UpdateCurrentUserProfileInput,
   UserProfileParams,
@@ -23,6 +30,29 @@ export async function searchUserProfiles(req: Request, res: Response, next: Next
       message: "Users retrieved successfully",
       data: {
         users
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function followUser(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user) {
+      throw new AppError("Authorization is required", 401);
+    }
+
+    const follow = await createFollowRelationship({
+      params: req.params as FollowUserParams,
+      followerUserId: req.user.userId
+    });
+
+    res.status(201).json({
+      status: "success",
+      message: follow.status === "PENDING" ? "Follow request sent successfully" : "User followed successfully",
+      data: {
+        follow
       }
     });
   } catch (error) {

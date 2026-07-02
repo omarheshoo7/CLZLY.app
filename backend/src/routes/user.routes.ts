@@ -1,8 +1,15 @@
 import { Router } from "express";
-import { getProfile, searchUserProfiles, updateMyPrivacy, updateMyProfile } from "../controllers/user.controller";
+import {
+  followUser,
+  getProfile,
+  searchUserProfiles,
+  updateMyPrivacy,
+  updateMyProfile
+} from "../controllers/user.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { validateRequest } from "../middleware/validate.middleware";
 import {
+  followUserParamsSchema,
   updateCurrentUserPrivacySchema,
   updateCurrentUserProfileSchema,
   userProfileParamsSchema,
@@ -27,6 +34,15 @@ router.patch(
     body: updateCurrentUserProfileSchema
   }),
   updateMyProfile
+);
+
+router.post(
+  "/:username/follow",
+  authMiddleware,
+  validateRequest({
+    params: followUserParamsSchema
+  }),
+  followUser
 );
 
 router.get(

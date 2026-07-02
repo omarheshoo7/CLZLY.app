@@ -26,6 +26,8 @@ export const userProfileParamsSchema = z.object({
     .regex(/^[A-Za-z0-9_]+$/, "Username can only contain letters, numbers, and underscores")
 });
 
+export const followUserParamsSchema = userProfileParamsSchema;
+
 export const userSearchQuerySchema = z
   .object({
     q: z
@@ -58,6 +60,7 @@ export const updateCurrentUserPrivacySchema = z
   .strict();
 
 export type UserProfileParams = z.infer<typeof userProfileParamsSchema>;
+export type FollowUserParams = z.infer<typeof followUserParamsSchema>;
 export type UserSearchQuery = z.infer<typeof userSearchQuerySchema>;
 export type UpdateCurrentUserProfileInput = z.infer<typeof updateCurrentUserProfileSchema>;
 export type UpdateCurrentUserPrivacyInput = z.infer<typeof updateCurrentUserPrivacySchema>;

@@ -7,6 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum FollowStatus {
+  PENDING
+  ACCEPTED
+}
+
 model User {
   id                String    @id @default(cuid())
   username          String    @unique
@@ -23,11 +28,30 @@ model User {
   updatedAt         DateTime  @updatedAt
 
   refreshTokens RefreshToken[]
+  followers     Follow[] @relation("UserFollowers")
+  following     Follow[] @relation("UserFollowing")
 
   @@index([createdAt])
   @@index([isDisabled])
   @@index([deletedAt])
   @@map("users")
+}
+
+model Follow {
+  id          String       @id @default(cuid())
+  followerId  String
+  followingId String
+  status      FollowStatus @default(PENDING)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  follower  User @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId, status])
+  @@index([followingId, status])
+  @@map("follows")
 }
 
 model RefreshToken {
