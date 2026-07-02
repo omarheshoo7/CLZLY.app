@@ -2,9 +2,14 @@ import { prisma } from "../prisma";
 import type {
   UpdateCurrentUserPrivacyInput,
   UpdateCurrentUserProfileInput,
-  UserProfileParams
+  UserProfileParams,
+  UserSearchQuery
 } from "../schemas/user.schema";
 import { AppError } from "../utils/errors";
+
+type SearchUsersInput = {
+  query: UserSearchQuery;
+};
 
 type GetUserProfileInput = {
   params: UserProfileParams;
@@ -20,6 +25,40 @@ type UpdateCurrentUserPrivacyServiceInput = {
   userId: string;
   data: UpdateCurrentUserPrivacyInput;
 };
+
+export async function searchUsers({ query }: SearchUsersInput) {
+  return prisma.user.findMany({
+    where: {
+      deletedAt: null,
+      isDisabled: false,
+      OR: [
+        {
+          username: {
+            contains: query.q,
+            mode: "insensitive"
+          }
+        },
+        {
+          displayName: {
+            contains: query.q,
+            mode: "insensitive"
+          }
+        }
+      ]
+    },
+    select: {
+      id: true,
+      username: true,
+      displayName: true,
+      bio: true,
+      profilePictureUrl: true,
+      isPrivate: true,
+      createdAt: true
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+    take: 10
+  });
+}
 
 export async function getUserProfile({ params, viewerUserId }: GetUserProfileInput) {
   const user = await prisma.user.findUnique({

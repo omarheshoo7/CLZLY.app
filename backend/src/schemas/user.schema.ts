@@ -26,6 +26,20 @@ export const userProfileParamsSchema = z.object({
     .regex(/^[A-Za-z0-9_]+$/, "Username can only contain letters, numbers, and underscores")
 });
 
+export const userSearchQuerySchema = z
+  .object({
+    q: z
+      .string()
+      .transform((value) => value.trim())
+      .pipe(
+        z
+          .string()
+          .min(2, "Search query must be at least 2 characters")
+          .max(50, "Search query must be at most 50 characters")
+      )
+  })
+  .strict();
+
 export const updateCurrentUserProfileSchema = z
   .object({
     displayName: nullableTrimmedString("Display name", 50).optional(),
@@ -44,5 +58,6 @@ export const updateCurrentUserPrivacySchema = z
   .strict();
 
 export type UserProfileParams = z.infer<typeof userProfileParamsSchema>;
+export type UserSearchQuery = z.infer<typeof userSearchQuerySchema>;
 export type UpdateCurrentUserProfileInput = z.infer<typeof updateCurrentUserProfileSchema>;
 export type UpdateCurrentUserPrivacyInput = z.infer<typeof updateCurrentUserPrivacySchema>;

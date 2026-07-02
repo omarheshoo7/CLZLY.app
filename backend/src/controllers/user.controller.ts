@@ -1,11 +1,34 @@
 import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../utils/errors";
-import { getUserProfile, updateCurrentUserPrivacy, updateCurrentUserProfile } from "../services/user.service";
+import { getUserProfile, searchUsers, updateCurrentUserPrivacy, updateCurrentUserProfile } from "../services/user.service";
 import type {
   UpdateCurrentUserPrivacyInput,
   UpdateCurrentUserProfileInput,
-  UserProfileParams
+  UserProfileParams,
+  UserSearchQuery
 } from "../schemas/user.schema";
+
+export async function searchUserProfiles(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user) {
+      throw new AppError("Authorization is required", 401);
+    }
+
+    const users = await searchUsers({
+      query: req.query as UserSearchQuery
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Users retrieved successfully",
+      data: {
+        users
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
 
 export async function getProfile(req: Request, res: Response, next: NextFunction) {
   try {
