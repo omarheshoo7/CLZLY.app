@@ -1,7 +1,9 @@
 import { Router } from "express";
 import {
+  clearMySearchHistory,
   followUser,
   getProfile,
+  getMySearchHistory,
   searchUserProfiles,
   updateMyPrivacy,
   updateMyProfile
@@ -53,6 +55,10 @@ router.get(
   }),
   searchUserProfiles
 );
+
+router.get("/me/search-history", authMiddleware, getMySearchHistory);
+
+router.delete("/me/search-history", authMiddleware, clearMySearchHistory);
 
 router.get(
   "/:username",

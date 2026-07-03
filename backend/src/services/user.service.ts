@@ -9,8 +9,33 @@ import type {
 } from "../schemas/user.schema";
 import { AppError } from "../utils/errors";
 
+const publicUserCardSelect = {
+  id: true,
+  username: true,
+  displayName: true,
+  bio: true,
+  profilePictureUrl: true,
+  isPrivate: true,
+  createdAt: true
+} as const;
+
+const searchHistoryUserSelect = {
+  ...publicUserCardSelect,
+  isDisabled: true,
+  deletedAt: true
+} as const;
+
+type PublicUserCard = Prisma.UserGetPayload<{
+  select: typeof publicUserCardSelect;
+}>;
+
+type SearchHistoryUser = Prisma.UserGetPayload<{
+  select: typeof searchHistoryUserSelect;
+}>;
+
 type SearchUsersInput = {
   query: UserSearchQuery;
+  searcherUserId: string;
 };
 
 type FollowUserInput = {
@@ -33,8 +58,71 @@ type UpdateCurrentUserPrivacyServiceInput = {
   data: UpdateCurrentUserPrivacyInput;
 };
 
-export async function searchUsers({ query }: SearchUsersInput) {
-  return prisma.user.findMany({
+type RecordSearchHistoryInput = {
+  searcherUserId: string;
+  users: PublicUserCard[];
+};
+
+type GetSearchHistoryInput = {
+  userId: string;
+};
+
+type ClearSearchHistoryInput = {
+  userId: string;
+};
+
+function dedupeSearchHistoryUsers(users: PublicUserCard[], searcherUserId: string) {
+  const seenUserIds = new Set<string>();
+  const uniqueUsers: PublicUserCard[] = [];
+
+  for (const user of users) {
+    if (user.id === searcherUserId || seenUserIds.has(user.id)) {
+      continue;
+    }
+
+    seenUserIds.add(user.id);
+    uniqueUsers.push(user);
+  }
+
+  return uniqueUsers;
+}
+
+async function recordSearchHistory({ searcherUserId, users }: RecordSearchHistoryInput) {
+  const uniqueUsers = dedupeSearchHistoryUsers(users, searcherUserId);
+
+  if (uniqueUsers.length === 0) {
+    return;
+  }
+
+  await prisma.$transaction(async (transaction) => {
+    for (const user of uniqueUsers) {
+      await transaction.userSearchHistory.upsert({
+        where: {
+          searcherId_searchedUserId: {
+            searcherId: searcherUserId,
+            searchedUserId: user.id
+          }
+        },
+        create: {
+          searcherId: searcherUserId,
+          searchedUserId: user.id
+        },
+        update: {
+          updatedAt: new Date()
+        }
+      });
+    }
+  });
+}
+
+function toPublicUserCard(user: SearchHistoryUser): PublicUserCard {
+  const { isDisabled: _isDisabled, deletedAt: _deletedAt, ...safeUser } = user;
+
+  return safeUser;
+}
+
+export async function searchUsers({ query, searcherUserId }: SearchUsersInput) {
+  const users = await prisma.user.findMany({
     where: {
       deletedAt: null,
       isDisabled: false,
@@ -53,17 +141,43 @@ export async function searchUsers({ query }: SearchUsersInput) {
         }
       ]
     },
-    select: {
-      id: true,
-      username: true,
-      displayName: true,
-      bio: true,
-      profilePictureUrl: true,
-      isPrivate: true,
-      createdAt: true
-    },
+    select: publicUserCardSelect,
     orderBy: [{ createdAt: "desc" }, { id: "asc" }],
     take: 10
+  });
+
+  await recordSearchHistory({
+    searcherUserId,
+    users
+  });
+
+  return users;
+}
+
+export async function getSearchHistory({ userId }: GetSearchHistoryInput) {
+  const historyEntries = await prisma.userSearchHistory.findMany({
+    where: {
+      searcherId: userId
+    },
+    orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+    select: {
+      searchedUser: {
+        select: searchHistoryUserSelect
+      }
+    }
+  });
+
+  return historyEntries
+    .map(({ searchedUser }) => searchedUser)
+    .filter((searchedUser) => !searchedUser.isDisabled && searchedUser.deletedAt === null)
+    .map((searchedUser) => toPublicUserCard(searchedUser));
+}
+
+export async function clearSearchHistory({ userId }: ClearSearchHistoryInput) {
+  await prisma.userSearchHistory.deleteMany({
+    where: {
+      searcherId: userId
+    }
   });
 }
 

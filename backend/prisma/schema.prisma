@@ -30,6 +30,8 @@ model User {
   refreshTokens RefreshToken[]
   followers     Follow[] @relation("UserFollowers")
   following     Follow[] @relation("UserFollowing")
+  searchHistoryEntries     UserSearchHistory[] @relation("UserSearchHistorySearcher")
+  searchedByHistoryEntries  UserSearchHistory[] @relation("UserSearchHistorySearchedUser")
 
   @@index([createdAt])
   @@index([isDisabled])
@@ -70,4 +72,19 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+model UserSearchHistory {
+  id             String   @id @default(cuid())
+  searcherId     String
+  searchedUserId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  searcher     User @relation("UserSearchHistorySearcher", fields: [searcherId], references: [id], onDelete: Cascade)
+  searchedUser User @relation("UserSearchHistorySearchedUser", fields: [searchedUserId], references: [id], onDelete: Cascade)
+
+  @@unique([searcherId, searchedUserId])
+  @@index([searcherId, updatedAt])
+  @@map("user_search_history")
 }
