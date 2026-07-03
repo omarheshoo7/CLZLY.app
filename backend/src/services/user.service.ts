@@ -41,6 +41,8 @@ type SearchHistoryUser = Prisma.UserGetPayload<{
   select: typeof searchHistoryUserSelect;
 }>;
 
+type ProfileFollowStatus = "SELF" | "FOLLOWING" | "REQUESTED" | "NONE";
+
 type SearchUsersInput = {
   query: UserSearchQuery;
   searcherUserId: string;
@@ -505,11 +507,36 @@ export async function getUserProfile({ params, viewerUserId }: GetUserProfileInp
   }
 
   const isOwnProfile = user.id === viewerUserId;
+  let followStatus: ProfileFollowStatus = "SELF";
+
+  if (!isOwnProfile) {
+    const existingFollow = await prisma.follow.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId: viewerUserId,
+          followingId: user.id
+        }
+      },
+      select: {
+        status: true
+      }
+    });
+
+    followStatus = existingFollow?.status === "ACCEPTED"
+      ? "FOLLOWING"
+      : existingFollow?.status === "PENDING"
+        ? "REQUESTED"
+        : "NONE";
+  }
+
   const canViewPosts = isOwnProfile || !user.isPrivate;
   const { isDisabled: _isDisabled, deletedAt: _deletedAt, ...safeProfile } = user;
 
   return {
-    user: safeProfile,
+    user: {
+      ...safeProfile,
+      followStatus
+    },
     canViewPosts
   };
 }
