@@ -529,7 +529,7 @@ export async function getUserProfile({ params, viewerUserId }: GetUserProfileInp
         : "NONE";
   }
 
-  const canViewPosts = isOwnProfile || !user.isPrivate;
+  const canViewPosts = isOwnProfile || !user.isPrivate || followStatus === "FOLLOWING";
   const { isDisabled: _isDisabled, deletedAt: _deletedAt, ...safeProfile } = user;
 
   return {
