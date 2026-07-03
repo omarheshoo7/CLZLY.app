@@ -30,6 +30,7 @@ model User {
   refreshTokens RefreshToken[]
   followers     Follow[] @relation("UserFollowers")
   following     Follow[] @relation("UserFollowing")
+  posts         Post[]
   searchHistoryEntries     UserSearchHistory[] @relation("UserSearchHistorySearcher")
   searchedByHistoryEntries  UserSearchHistory[] @relation("UserSearchHistorySearchedUser")
 
@@ -37,6 +38,19 @@ model User {
   @@index([isDisabled])
   @@index([deletedAt])
   @@map("users")
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([authorId])
+  @@index([createdAt])
 }
 
 model Follow {
