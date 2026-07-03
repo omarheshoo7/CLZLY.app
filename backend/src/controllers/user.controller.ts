@@ -4,7 +4,9 @@ import {
   acceptFollowRequest,
   clearSearchHistory,
   followUser as createFollowRelationship,
+  getFollowers,
   getIncomingFollowRequests,
+  getFollowing,
   getSearchHistory,
   getUserProfile,
   rejectFollowRequest,
@@ -100,6 +102,50 @@ export async function getMyFollowRequests(req: Request, res: Response, next: Nex
       message: "Follow requests retrieved successfully",
       data: {
         requests
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getFollowersList(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user) {
+      throw new AppError("Authorization is required", 401);
+    }
+
+    const users = await getFollowers({
+      params: req.params as UserProfileParams
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Followers retrieved successfully",
+      data: {
+        users
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getFollowingList(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user) {
+      throw new AppError("Authorization is required", 401);
+    }
+
+    const users = await getFollowing({
+      params: req.params as UserProfileParams
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Following retrieved successfully",
+      data: {
+        users
       }
     });
   } catch (error) {

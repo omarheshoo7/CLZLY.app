@@ -3,9 +3,11 @@ import {
   acceptMyFollowRequest,
   clearMySearchHistory,
   followUser,
+  getFollowersList,
   getMyFollowRequests,
   getProfile,
   getMySearchHistory,
+  getFollowingList,
   rejectMyFollowRequest,
   searchUserProfiles,
   updateMyPrivacy,
@@ -83,6 +85,24 @@ router.get(
 router.get("/me/search-history", authMiddleware, getMySearchHistory);
 
 router.delete("/me/search-history", authMiddleware, clearMySearchHistory);
+
+router.get(
+  "/:username/followers",
+  authMiddleware,
+  validateRequest({
+    params: userProfileParamsSchema
+  }),
+  getFollowersList
+);
+
+router.get(
+  "/:username/following",
+  authMiddleware,
+  validateRequest({
+    params: userProfileParamsSchema
+  }),
+  getFollowingList
+);
 
 router.get(
   "/:username",

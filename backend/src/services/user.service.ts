@@ -56,6 +56,10 @@ type FollowRequestInput = {
   receiverUserId: string;
 };
 
+type FollowersListInput = {
+  params: UserProfileParams;
+};
+
 type GetUserProfileInput = {
   params: UserProfileParams;
   viewerUserId: string;
@@ -158,6 +162,25 @@ async function getOwnedFollowRequestOrThrow({ followId, receiverUserId }: { foll
   return follow;
 }
 
+async function getActiveUserByUsernameOrThrow(username: string) {
+  const user = await prisma.user.findUnique({
+    where: {
+      username
+    },
+    select: {
+      id: true,
+      isDisabled: true,
+      deletedAt: true
+    }
+  });
+
+  if (!user || user.deletedAt || user.isDisabled) {
+    throw new AppError("User profile not found", 404);
+  }
+
+  return user;
+}
+
 export async function searchUsers({ query, searcherUserId }: SearchUsersInput) {
   const users = await prisma.user.findMany({
     where: {
@@ -247,6 +270,52 @@ export async function getIncomingFollowRequests({ userId }: { userId: string }) 
       requester: followRequest.follower
     })
   );
+}
+
+export async function getFollowers({ params }: FollowersListInput) {
+  const profileUser = await getActiveUserByUsernameOrThrow(params.username);
+
+  const followerRelationships = await prisma.follow.findMany({
+    where: {
+      followingId: profileUser.id,
+      status: "ACCEPTED",
+      follower: {
+        isDisabled: false,
+        deletedAt: null
+      }
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    select: {
+      follower: {
+        select: publicUserCardSelect
+      }
+    }
+  });
+
+  return followerRelationships.map(({ follower }) => follower);
+}
+
+export async function getFollowing({ params }: FollowersListInput) {
+  const profileUser = await getActiveUserByUsernameOrThrow(params.username);
+
+  const followingRelationships = await prisma.follow.findMany({
+    where: {
+      followerId: profileUser.id,
+      status: "ACCEPTED",
+      following: {
+        isDisabled: false,
+        deletedAt: null
+      }
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    select: {
+      following: {
+        select: publicUserCardSelect
+      }
+    }
+  });
+
+  return followingRelationships.map(({ following }) => following);
 }
 
 export async function acceptFollowRequest({ params, receiverUserId }: FollowRequestInput) {
