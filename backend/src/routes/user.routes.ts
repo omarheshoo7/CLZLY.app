@@ -10,6 +10,7 @@ import {
   getFollowingList,
   rejectMyFollowRequest,
   searchUserProfiles,
+  unfollowUser,
   updateMyPrivacy,
   updateMyProfile
 } from "../controllers/user.controller";
@@ -71,6 +72,15 @@ router.post(
     params: followUserParamsSchema
   }),
   followUser
+);
+
+router.delete(
+  "/:username/follow",
+  authMiddleware,
+  validateRequest({
+    params: userProfileParamsSchema
+  }),
+  unfollowUser
 );
 
 router.get(

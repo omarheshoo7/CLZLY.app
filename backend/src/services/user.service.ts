@@ -416,6 +416,41 @@ export async function followUser({ params, followerUserId }: FollowUserInput) {
   }
 }
 
+export async function unfollowUser({ params, followerUserId }: FollowUserInput) {
+  const targetUser = await getActiveUserByUsernameOrThrow(params.username);
+
+  if (targetUser.id === followerUserId) {
+    throw new AppError("You cannot unfollow yourself", 400);
+  }
+
+  const existingFollow = await prisma.follow.findUnique({
+    where: {
+      followerId_followingId: {
+        followerId: followerUserId,
+        followingId: targetUser.id
+      }
+    },
+    select: {
+      id: true,
+      status: true
+    }
+  });
+
+  if (!existingFollow) {
+    throw new AppError("Follow relationship not found", 404);
+  }
+
+  await prisma.follow.delete({
+    where: {
+      id: existingFollow.id
+    }
+  });
+
+  return existingFollow.status === "PENDING"
+    ? "Follow request cancelled successfully"
+    : "User unfollowed successfully";
+}
+
 export async function getUserProfile({ params, viewerUserId }: GetUserProfileInput) {
   const user = await prisma.user.findUnique({
     where: {
