@@ -1,15 +1,19 @@
 import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../utils/errors";
 import {
+  acceptFollowRequest,
   clearSearchHistory,
   followUser as createFollowRelationship,
+  getIncomingFollowRequests,
   getSearchHistory,
   getUserProfile,
+  rejectFollowRequest,
   searchUsers,
   updateCurrentUserPrivacy,
   updateCurrentUserProfile
 } from "../services/user.service";
 import type {
+  FollowRequestParams,
   FollowUserParams,
   UpdateCurrentUserPrivacyInput,
   UpdateCurrentUserProfileInput,
@@ -75,6 +79,71 @@ export async function clearMySearchHistory(req: Request, res: Response, next: Ne
     res.status(200).json({
       status: "success",
       message: "Search history cleared successfully"
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getMyFollowRequests(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user) {
+      throw new AppError("Authorization is required", 401);
+    }
+
+    const requests = await getIncomingFollowRequests({
+      userId: req.user.userId
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Follow requests retrieved successfully",
+      data: {
+        requests
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function acceptMyFollowRequest(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user) {
+      throw new AppError("Authorization is required", 401);
+    }
+
+    const follow = await acceptFollowRequest({
+      params: req.params as FollowRequestParams,
+      receiverUserId: req.user.userId
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Follow request accepted successfully",
+      data: {
+        follow
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function rejectMyFollowRequest(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user) {
+      throw new AppError("Authorization is required", 401);
+    }
+
+    await rejectFollowRequest({
+      params: req.params as FollowRequestParams,
+      receiverUserId: req.user.userId
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Follow request rejected successfully"
     });
   } catch (error) {
     next(error);

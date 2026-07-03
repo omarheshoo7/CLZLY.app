@@ -28,6 +28,15 @@ export const userProfileParamsSchema = z.object({
 
 export const followUserParamsSchema = userProfileParamsSchema;
 
+export const followRequestParamsSchema = z
+  .object({
+    followId: z
+      .string()
+      .transform((value) => value.trim())
+      .pipe(z.string().min(1, "Follow request id is required"))
+  })
+  .strict();
+
 export const userSearchQuerySchema = z
   .object({
     q: z
@@ -61,6 +70,7 @@ export const updateCurrentUserPrivacySchema = z
 
 export type UserProfileParams = z.infer<typeof userProfileParamsSchema>;
 export type FollowUserParams = z.infer<typeof followUserParamsSchema>;
+export type FollowRequestParams = z.infer<typeof followRequestParamsSchema>;
 export type UserSearchQuery = z.infer<typeof userSearchQuerySchema>;
 export type UpdateCurrentUserProfileInput = z.infer<typeof updateCurrentUserProfileSchema>;
 export type UpdateCurrentUserPrivacyInput = z.infer<typeof updateCurrentUserPrivacySchema>;

@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../prisma";
 import type {
+  FollowRequestParams,
   FollowUserParams,
   UpdateCurrentUserPrivacyInput,
   UpdateCurrentUserProfileInput,
@@ -29,6 +30,13 @@ type PublicUserCard = Prisma.UserGetPayload<{
   select: typeof publicUserCardSelect;
 }>;
 
+type IncomingFollowRequest = {
+  id: string;
+  status: "PENDING";
+  createdAt: Date;
+  requester: PublicUserCard;
+};
+
 type SearchHistoryUser = Prisma.UserGetPayload<{
   select: typeof searchHistoryUserSelect;
 }>;
@@ -41,6 +49,11 @@ type SearchUsersInput = {
 type FollowUserInput = {
   params: FollowUserParams;
   followerUserId: string;
+};
+
+type FollowRequestInput = {
+  params: FollowRequestParams;
+  receiverUserId: string;
 };
 
 type GetUserProfileInput = {
@@ -70,6 +83,15 @@ type GetSearchHistoryInput = {
 type ClearSearchHistoryInput = {
   userId: string;
 };
+
+const followRowSelect = {
+  id: true,
+  followerId: true,
+  followingId: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true
+} as const;
 
 function dedupeSearchHistoryUsers(users: PublicUserCard[], searcherUserId: string) {
   const seenUserIds = new Set<string>();
@@ -119,6 +141,21 @@ function toPublicUserCard(user: SearchHistoryUser): PublicUserCard {
   const { isDisabled: _isDisabled, deletedAt: _deletedAt, ...safeUser } = user;
 
   return safeUser;
+}
+
+async function getOwnedFollowRequestOrThrow({ followId, receiverUserId }: { followId: string; receiverUserId: string }) {
+  const follow = await prisma.follow.findUnique({
+    where: {
+      id: followId
+    },
+    select: followRowSelect
+  });
+
+  if (!follow || follow.followingId !== receiverUserId) {
+    throw new AppError("Follow request not found", 404);
+  }
+
+  return follow;
 }
 
 export async function searchUsers({ query, searcherUserId }: SearchUsersInput) {
@@ -181,6 +218,75 @@ export async function clearSearchHistory({ userId }: ClearSearchHistoryInput) {
   });
 }
 
+export async function getIncomingFollowRequests({ userId }: { userId: string }) {
+  const followRequests = await prisma.follow.findMany({
+    where: {
+      followingId: userId,
+      status: "PENDING",
+      follower: {
+        isDisabled: false,
+        deletedAt: null
+      }
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    select: {
+      id: true,
+      status: true,
+      createdAt: true,
+      follower: {
+        select: publicUserCardSelect
+      }
+    }
+  });
+
+  return followRequests.map(
+    (followRequest): IncomingFollowRequest => ({
+      id: followRequest.id,
+      status: "PENDING",
+      createdAt: followRequest.createdAt,
+      requester: followRequest.follower
+    })
+  );
+}
+
+export async function acceptFollowRequest({ params, receiverUserId }: FollowRequestInput) {
+  const follow = await getOwnedFollowRequestOrThrow({
+    followId: params.followId,
+    receiverUserId
+  });
+
+  if (follow.status === "ACCEPTED") {
+    throw new AppError("Follow request has already been accepted", 409);
+  }
+
+  return prisma.follow.update({
+    where: {
+      id: follow.id
+    },
+    data: {
+      status: "ACCEPTED"
+    },
+    select: followRowSelect
+  });
+}
+
+export async function rejectFollowRequest({ params, receiverUserId }: FollowRequestInput) {
+  const follow = await getOwnedFollowRequestOrThrow({
+    followId: params.followId,
+    receiverUserId
+  });
+
+  if (follow.status === "ACCEPTED") {
+    throw new AppError("Follow request has already been accepted", 409);
+  }
+
+  await prisma.follow.delete({
+    where: {
+      id: follow.id
+    }
+  });
+}
+
 export async function followUser({ params, followerUserId }: FollowUserInput) {
   const targetUser = await prisma.user.findUnique({
     where: {
@@ -230,14 +336,7 @@ export async function followUser({ params, followerUserId }: FollowUserInput) {
         followingId: targetUser.id,
         status: targetUser.isPrivate ? "PENDING" : "ACCEPTED"
       },
-      select: {
-        id: true,
-        followerId: true,
-        followingId: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true
-      }
+      select: followRowSelect
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {

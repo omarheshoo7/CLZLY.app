@@ -1,9 +1,12 @@
 import { Router } from "express";
 import {
+  acceptMyFollowRequest,
   clearMySearchHistory,
   followUser,
+  getMyFollowRequests,
   getProfile,
   getMySearchHistory,
+  rejectMyFollowRequest,
   searchUserProfiles,
   updateMyPrivacy,
   updateMyProfile
@@ -11,6 +14,7 @@ import {
 import { authMiddleware } from "../middleware/auth.middleware";
 import { validateRequest } from "../middleware/validate.middleware";
 import {
+  followRequestParamsSchema,
   followUserParamsSchema,
   updateCurrentUserPrivacySchema,
   updateCurrentUserProfileSchema,
@@ -36,6 +40,26 @@ router.patch(
     body: updateCurrentUserProfileSchema
   }),
   updateMyProfile
+);
+
+router.get("/me/follow-requests", authMiddleware, getMyFollowRequests);
+
+router.patch(
+  "/follow-requests/:followId/accept",
+  authMiddleware,
+  validateRequest({
+    params: followRequestParamsSchema
+  }),
+  acceptMyFollowRequest
+);
+
+router.patch(
+  "/follow-requests/:followId/reject",
+  authMiddleware,
+  validateRequest({
+    params: followRequestParamsSchema
+  }),
+  rejectMyFollowRequest
 );
 
 router.post(
