@@ -15,6 +15,7 @@ import {
   updateMyPrivacy,
   updateMyProfile
 } from "../controllers/user.controller";
+import { getProfilePostsHandler } from "../controllers/post.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { validateRequest } from "../middleware/validate.middleware";
 import {
@@ -122,6 +123,15 @@ router.get(
     params: userProfileParamsSchema
   }),
   getFollowingList
+);
+
+router.get(
+  "/:username/posts",
+  authMiddleware,
+  validateRequest({
+    params: userProfileParamsSchema
+  }),
+  getProfilePostsHandler
 );
 
 router.get(
