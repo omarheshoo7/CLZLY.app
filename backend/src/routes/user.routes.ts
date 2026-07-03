@@ -8,6 +8,7 @@ import {
   getProfile,
   getMySearchHistory,
   getFollowingList,
+  removeMyFollower,
   rejectMyFollowRequest,
   searchUserProfiles,
   unfollowUser,
@@ -46,6 +47,15 @@ router.patch(
 );
 
 router.get("/me/follow-requests", authMiddleware, getMyFollowRequests);
+
+router.delete(
+  "/me/followers/:username",
+  authMiddleware,
+  validateRequest({
+    params: userProfileParamsSchema
+  }),
+  removeMyFollower
+);
 
 router.patch(
   "/follow-requests/:followId/accept",

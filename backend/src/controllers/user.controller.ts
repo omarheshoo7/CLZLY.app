@@ -9,6 +9,7 @@ import {
   getFollowing,
   getSearchHistory,
   getUserProfile,
+  removeFollower,
   rejectFollowRequest,
   searchUsers,
   unfollowUser as removeFollowRelationship,
@@ -229,6 +230,26 @@ export async function unfollowUser(req: Request, res: Response, next: NextFuncti
     const message = await removeFollowRelationship({
       params: req.params as UserProfileParams,
       followerUserId: req.user.userId
+    });
+
+    res.status(200).json({
+      status: "success",
+      message
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function removeMyFollower(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user) {
+      throw new AppError("Authorization is required", 401);
+    }
+
+    const message = await removeFollower({
+      params: req.params as UserProfileParams,
+      followingUserId: req.user.userId
     });
 
     res.status(200).json({

@@ -451,6 +451,37 @@ export async function unfollowUser({ params, followerUserId }: FollowUserInput) 
     : "User unfollowed successfully";
 }
 
+export async function removeFollower({ params, followingUserId }: { params: UserProfileParams; followingUserId: string }) {
+  const followerUser = await getActiveUserByUsernameOrThrow(params.username);
+
+  if (followerUser.id === followingUserId) {
+    throw new AppError("You cannot remove yourself as a follower", 400);
+  }
+
+  const acceptedFollowerRelationship = await prisma.follow.findFirst({
+    where: {
+      followerId: followerUser.id,
+      followingId: followingUserId,
+      status: "ACCEPTED"
+    },
+    select: {
+      id: true
+    }
+  });
+
+  if (!acceptedFollowerRelationship) {
+    throw new AppError("Follower relationship not found", 404);
+  }
+
+  await prisma.follow.delete({
+    where: {
+      id: acceptedFollowerRelationship.id
+    }
+  });
+
+  return "Follower removed successfully";
+}
+
 export async function getUserProfile({ params, viewerUserId }: GetUserProfileInput) {
   const user = await prisma.user.findUnique({
     where: {
