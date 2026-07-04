@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import type { CreatePostInput, DeletePostParams } from "../schemas/post.schema";
 import type { UserProfileParams } from "../schemas/user.schema";
-import { createPost, deletePost, getProfilePosts, updatePost } from "../services/post.service";
+import { createPost, deletePost, getPostById, getProfilePosts, updatePost } from "../services/post.service";
 import { AppError } from "../utils/errors";
 
 export async function createPostHandler(req: Request, res: Response, next: NextFunction) {
@@ -43,6 +43,29 @@ export async function getProfilePostsHandler(req: Request, res: Response, next: 
       message: "Profile posts retrieved successfully",
       data: {
         posts
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getPostHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user) {
+      throw new AppError("Authorization is required", 401);
+    }
+
+    const post = await getPostById({
+      postId: (req.params as DeletePostParams).postId,
+      viewerUserId: req.user.userId
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Post retrieved successfully",
+      data: {
+        post
       }
     });
   } catch (error) {

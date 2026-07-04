@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createPostHandler, deletePostHandler, updatePostHandler } from "../controllers/post.controller";
+import { createPostHandler, deletePostHandler, getPostHandler, updatePostHandler } from "../controllers/post.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { validateRequest } from "../middleware/validate.middleware";
 import { createPostSchema, deletePostParamsSchema } from "../schemas/post.schema";
@@ -13,6 +13,15 @@ router.post(
     body: createPostSchema
   }),
   createPostHandler
+);
+
+router.get(
+  "/:postId",
+  authMiddleware,
+  validateRequest({
+    params: deletePostParamsSchema
+  }),
+  getPostHandler
 );
 
 router.patch(

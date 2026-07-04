@@ -32,6 +32,11 @@ type GetProfilePostsInput = {
   viewerUserId: string;
 };
 
+type GetPostByIdInput = {
+  postId: string;
+  viewerUserId: string;
+};
+
 export async function createPost({ authorId, data }: CreatePostServiceInput) {
   return prisma.post.create({
     data: {
@@ -88,6 +93,53 @@ export async function updatePost({ postId, viewerUserId, data }: UpdatePostServi
     },
     select: postSelect
   });
+}
+
+export async function getPostById({ postId, viewerUserId }: GetPostByIdInput) {
+  const post = await prisma.post.findUnique({
+    where: {
+      id: postId
+    },
+    select: {
+      ...postSelect,
+      author: {
+        select: {
+          id: true,
+          isPrivate: true,
+          isDisabled: true,
+          deletedAt: true
+        }
+      }
+    }
+  });
+
+  if (!post || post.author.isDisabled || post.author.deletedAt) {
+    throw new AppError("Post not found", 404);
+  }
+
+  if (viewerUserId === post.authorId || !post.author.isPrivate) {
+    const { author: _author, ...publicPost } = post;
+    return publicPost;
+  }
+
+  const existingFollow = await prisma.follow.findUnique({
+    where: {
+      followerId_followingId: {
+        followerId: viewerUserId,
+        followingId: post.authorId
+      }
+    },
+    select: {
+      status: true
+    }
+  });
+
+  if (existingFollow?.status !== "ACCEPTED") {
+    throw new AppError("Post not found", 404);
+  }
+
+  const { author: _author, ...publicPost } = post;
+  return publicPost;
 }
 
 export async function getProfilePosts({ params, viewerUserId }: GetProfilePostsInput) {
