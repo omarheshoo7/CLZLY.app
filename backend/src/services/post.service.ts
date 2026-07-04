@@ -21,6 +21,12 @@ type DeletePostServiceInput = {
   viewerUserId: string;
 };
 
+type UpdatePostServiceInput = {
+  postId: string;
+  viewerUserId: string;
+  data: CreatePostInput;
+};
+
 type GetProfilePostsInput = {
   params: UserProfileParams;
   viewerUserId: string;
@@ -55,6 +61,32 @@ export async function deletePost({ postId, viewerUserId }: DeletePostServiceInpu
     where: {
       id: post.id
     }
+  });
+}
+
+export async function updatePost({ postId, viewerUserId, data }: UpdatePostServiceInput) {
+  const post = await prisma.post.findUnique({
+    where: {
+      id: postId
+    },
+    select: {
+      id: true,
+      authorId: true
+    }
+  });
+
+  if (!post || post.authorId !== viewerUserId) {
+    throw new AppError("Post not found", 404);
+  }
+
+  return prisma.post.update({
+    where: {
+      id: post.id
+    },
+    data: {
+      content: data.content
+    },
+    select: postSelect
   });
 }
 
