@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import type { CreatePostInput, DeletePostParams } from "../schemas/post.schema";
+import type { CreatePostInput, DeletePostParams, ProfilePostsQuery } from "../schemas/post.schema";
 import type { UserProfileParams } from "../schemas/user.schema";
 import { createPost, deletePost, getPostById, getProfilePosts, updatePost } from "../services/post.service";
 import { AppError } from "../utils/errors";
@@ -33,16 +33,18 @@ export async function getProfilePostsHandler(req: Request, res: Response, next: 
       throw new AppError("Authorization is required", 401);
     }
 
-    const posts = await getProfilePosts({
+    const { posts, pagination } = await getProfilePosts({
       params: req.params as UserProfileParams,
-      viewerUserId: req.user.userId
+      viewerUserId: req.user.userId,
+      query: req.query as unknown as ProfilePostsQuery
     });
 
     res.status(200).json({
       status: "success",
       message: "Profile posts retrieved successfully",
       data: {
-        posts
+        posts,
+        pagination
       }
     });
   } catch (error) {

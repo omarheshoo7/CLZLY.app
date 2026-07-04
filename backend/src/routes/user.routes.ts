@@ -26,6 +26,7 @@ import {
   userProfileParamsSchema,
   userSearchQuerySchema
 } from "../schemas/user.schema";
+import { profilePostsQuerySchema } from "../schemas/post.schema";
 
 const router = Router();
 
@@ -129,7 +130,8 @@ router.get(
   "/:username/posts",
   authMiddleware,
   validateRequest({
-    params: userProfileParamsSchema
+    params: userProfileParamsSchema,
+    query: profilePostsQuerySchema
   }),
   getProfilePostsHandler
 );

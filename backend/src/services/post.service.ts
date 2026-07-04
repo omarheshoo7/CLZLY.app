@@ -1,7 +1,7 @@
 import { prisma } from "../prisma";
 import type { UserProfileParams } from "../schemas/user.schema";
 import { AppError } from "../utils/errors";
-import type { CreatePostInput } from "../schemas/post.schema";
+import type { CreatePostInput, ProfilePostsQuery } from "../schemas/post.schema";
 
 const postSelect = {
   id: true,
@@ -30,6 +30,7 @@ type UpdatePostServiceInput = {
 type GetProfilePostsInput = {
   params: UserProfileParams;
   viewerUserId: string;
+  query: ProfilePostsQuery;
 };
 
 type GetPostByIdInput = {
@@ -142,7 +143,7 @@ export async function getPostById({ postId, viewerUserId }: GetPostByIdInput) {
   return publicPost;
 }
 
-export async function getProfilePosts({ params, viewerUserId }: GetProfilePostsInput) {
+export async function getProfilePosts({ params, viewerUserId, query }: GetProfilePostsInput) {
   const profileUser = await prisma.user.findUnique({
     where: {
       username: params.username
@@ -180,11 +181,60 @@ export async function getProfilePosts({ params, viewerUserId }: GetProfilePostsI
     }
   }
 
-  return prisma.post.findMany({
+  let cursorPost: { id: string; authorId: string; createdAt: Date } | null = null;
+
+  if (query.cursor) {
+    cursorPost = await prisma.post.findUnique({
+      where: {
+        id: query.cursor
+      },
+      select: {
+        id: true,
+        authorId: true,
+        createdAt: true
+      }
+    });
+
+    if (!cursorPost || cursorPost.authorId !== profileUser.id) {
+      throw new AppError("Invalid cursor", 400);
+    }
+  }
+
+  const fetchedPosts = await prisma.post.findMany({
     where: {
-      authorId: profileUser.id
+      authorId: profileUser.id,
+      ...(cursorPost
+        ? {
+            OR: [
+              {
+                createdAt: {
+                  lt: cursorPost.createdAt
+                }
+              },
+              {
+                createdAt: cursorPost.createdAt,
+                id: {
+                  lt: cursorPost.id
+                }
+              }
+            ]
+          }
+        : {})
     },
     select: postSelect,
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }]
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: query.limit + 1
   });
+
+  const hasMore = fetchedPosts.length > query.limit;
+  const posts = hasMore ? fetchedPosts.slice(0, query.limit) : fetchedPosts;
+  const nextCursor = hasMore && posts.length > 0 ? posts[posts.length - 1].id : null;
+
+  return {
+    posts,
+    pagination: {
+      nextCursor,
+      hasMore
+    }
+  };
 }
