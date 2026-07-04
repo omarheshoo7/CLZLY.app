@@ -14,4 +14,14 @@ export const createPostSchema = z
   })
   .strict();
 
+export const deletePostParamsSchema = z
+  .object({
+    postId: z
+      .string()
+      .transform((value) => value.trim())
+      .pipe(z.string().min(1, "Post id is required"))
+  })
+  .strict();
+
 export type CreatePostInput = z.infer<typeof createPostSchema>;
+export type DeletePostParams = z.infer<typeof deletePostParamsSchema>;

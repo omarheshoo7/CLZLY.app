@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { createPostHandler } from "../controllers/post.controller";
+import { createPostHandler, deletePostHandler } from "../controllers/post.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { validateRequest } from "../middleware/validate.middleware";
-import { createPostSchema } from "../schemas/post.schema";
+import { createPostSchema, deletePostParamsSchema } from "../schemas/post.schema";
 
 const router = Router();
 
@@ -13,6 +13,15 @@ router.post(
     body: createPostSchema
   }),
   createPostHandler
+);
+
+router.delete(
+  "/:postId",
+  authMiddleware,
+  validateRequest({
+    params: deletePostParamsSchema
+  }),
+  deletePostHandler
 );
 
 export default router;
