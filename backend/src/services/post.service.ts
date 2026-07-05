@@ -11,6 +11,19 @@ const postSelect = {
   updatedAt: true
 } as const;
 
+type BasePost = {
+  id: string;
+  authorId: string;
+  content: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type PostWithLikeMetadata = BasePost & {
+  likesCount: number;
+  likedByMe: boolean;
+};
+
 type CreatePostServiceInput = {
   authorId: string;
   data: CreatePostInput;
@@ -105,6 +118,89 @@ async function assertPostVisibleForViewer({
   };
 }
 
+async function addLikeMetadataToPost({
+  post,
+  viewerUserId
+}: {
+  post: BasePost;
+  viewerUserId: string;
+}): Promise<PostWithLikeMetadata> {
+  const [likeCount, viewerLike] = await Promise.all([
+    prisma.postLike.count({
+      where: {
+        postId: post.id
+      }
+    }),
+    prisma.postLike.findUnique({
+      where: {
+        userId_postId: {
+          userId: viewerUserId,
+          postId: post.id
+        }
+      },
+      select: {
+        id: true
+      }
+    })
+  ]);
+
+  return {
+    ...post,
+    likesCount: likeCount,
+    likedByMe: Boolean(viewerLike)
+  };
+}
+
+export async function addLikeMetadataToPosts({
+  posts,
+  viewerUserId
+}: {
+  posts: BasePost[];
+  viewerUserId: string;
+}): Promise<PostWithLikeMetadata[]> {
+  if (posts.length === 0) {
+    return [];
+  }
+
+  const postIds = posts.map((post) => post.id);
+
+  const [viewerLikes, likeGroups] = await Promise.all([
+    prisma.postLike.findMany({
+      where: {
+        userId: viewerUserId,
+        postId: {
+          in: postIds
+        }
+      },
+      select: {
+        postId: true
+      }
+    }),
+    prisma.postLike.groupBy({
+      by: ["postId"],
+      where: {
+        postId: {
+          in: postIds
+        }
+      },
+      _count: {
+        postId: true
+      }
+    })
+  ]);
+
+  const likedPostIds = new Set(viewerLikes.map((like) => like.postId));
+  const likeCountByPostId = new Map(
+    likeGroups.map((group) => [group.postId, group._count.postId])
+  );
+
+  return posts.map((post) => ({
+    ...post,
+    likesCount: likeCountByPostId.get(post.id) ?? 0,
+    likedByMe: likedPostIds.has(post.id)
+  }));
+}
+
 export async function createPost({ authorId, data }: CreatePostServiceInput) {
   return prisma.post.create({
     data: {
@@ -187,7 +283,10 @@ export async function getPostById({ postId, viewerUserId }: GetPostByIdInput) {
 
   if (viewerUserId === post.authorId || !post.author.isPrivate) {
     const { author: _author, ...publicPost } = post;
-    return publicPost;
+    return addLikeMetadataToPost({
+      post: publicPost,
+      viewerUserId
+    });
   }
 
   const existingFollow = await prisma.follow.findUnique({
@@ -207,7 +306,10 @@ export async function getPostById({ postId, viewerUserId }: GetPostByIdInput) {
   }
 
   const { author: _author, ...publicPost } = post;
-  return publicPost;
+  return addLikeMetadataToPost({
+    post: publicPost,
+    viewerUserId
+  });
 }
 
 export async function likePost({ postId, viewerUserId }: LikePostServiceInput) {
@@ -358,9 +460,13 @@ export async function getProfilePosts({ params, viewerUserId, query }: GetProfil
   const hasMore = fetchedPosts.length > query.limit;
   const posts = hasMore ? fetchedPosts.slice(0, query.limit) : fetchedPosts;
   const nextCursor = hasMore && posts.length > 0 ? posts[posts.length - 1].id : null;
+  const postsWithLikeMetadata = await addLikeMetadataToPosts({
+    posts,
+    viewerUserId
+  });
 
   return {
-    posts,
+    posts: postsWithLikeMetadata,
     pagination: {
       nextCursor,
       hasMore
