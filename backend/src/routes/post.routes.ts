@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createPostHandler, deletePostHandler, getPostHandler, updatePostHandler } from "../controllers/post.controller";
+import { createPostHandler, deletePostHandler, getPostHandler, likePostHandler, unlikePostHandler, updatePostHandler } from "../controllers/post.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { validateRequest } from "../middleware/validate.middleware";
 import { createPostSchema, deletePostParamsSchema } from "../schemas/post.schema";
@@ -13,6 +13,15 @@ router.post(
     body: createPostSchema
   }),
   createPostHandler
+);
+
+router.post(
+  "/:postId/like",
+  authMiddleware,
+  validateRequest({
+    params: deletePostParamsSchema
+  }),
+  likePostHandler
 );
 
 router.get(
@@ -32,6 +41,15 @@ router.patch(
     body: createPostSchema
   }),
   updatePostHandler
+);
+
+router.delete(
+  "/:postId/like",
+  authMiddleware,
+  validateRequest({
+    params: deletePostParamsSchema
+  }),
+  unlikePostHandler
 );
 
 router.delete(

@@ -31,6 +31,7 @@ model User {
   followers     Follow[] @relation("UserFollowers")
   following     Follow[] @relation("UserFollowing")
   posts         Post[]
+  postLikes     PostLike[]
   searchHistoryEntries     UserSearchHistory[] @relation("UserSearchHistorySearcher")
   searchedByHistoryEntries  UserSearchHistory[] @relation("UserSearchHistorySearchedUser")
 
@@ -48,9 +49,24 @@ model Post {
   updatedAt DateTime @updatedAt
 
   author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  likes  PostLike[]
 
   @@index([authorId])
   @@index([createdAt])
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([postId])
+  @@index([userId])
 }
 
 model Follow {

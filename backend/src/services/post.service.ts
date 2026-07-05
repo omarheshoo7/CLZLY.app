@@ -21,6 +21,16 @@ type DeletePostServiceInput = {
   viewerUserId: string;
 };
 
+type LikePostServiceInput = {
+  postId: string;
+  viewerUserId: string;
+};
+
+type UnlikePostServiceInput = {
+  postId: string;
+  viewerUserId: string;
+};
+
 type UpdatePostServiceInput = {
   postId: string;
   viewerUserId: string;
@@ -37,6 +47,63 @@ type GetPostByIdInput = {
   postId: string;
   viewerUserId: string;
 };
+
+async function assertPostVisibleForViewer({
+  postId,
+  viewerUserId
+}: {
+  postId: string;
+  viewerUserId: string;
+}) {
+  const post = await prisma.post.findUnique({
+    where: {
+      id: postId
+    },
+    select: {
+      id: true,
+      authorId: true,
+      author: {
+        select: {
+          isPrivate: true,
+          isDisabled: true,
+          deletedAt: true
+        }
+      }
+    }
+  });
+
+  if (!post || post.author.isDisabled || post.author.deletedAt) {
+    throw new AppError("Post not found", 404);
+  }
+
+  if (viewerUserId === post.authorId || !post.author.isPrivate) {
+    return {
+      id: post.id,
+      authorId: post.authorId
+    };
+  }
+
+  const existingFollow = await prisma.follow.findUnique({
+    where: {
+      followerId_followingId: {
+        followerId: viewerUserId,
+        followingId: post.authorId
+      }
+    },
+    select: {
+      status: true
+    }
+  });
+
+  if (existingFollow?.status !== "ACCEPTED") {
+    throw new AppError("Post not found", 404);
+  }
+
+  return {
+    id: post.id,
+    authorId: post.authorId
+  };
+}
 
 export async function createPost({ authorId, data }: CreatePostServiceInput) {
   return prisma.post.create({
@@ -141,6 +208,68 @@ export async function getPostById({ postId, viewerUserId }: GetPostByIdInput) {
 
   const { author: _author, ...publicPost } = post;
   return publicPost;
+}
+
+export async function likePost({ postId, viewerUserId }: LikePostServiceInput) {
+  const visiblePost = await assertPostVisibleForViewer({
+    postId,
+    viewerUserId
+  });
+
+  const existingLike = await prisma.postLike.findUnique({
+    where: {
+      userId_postId: {
+        userId: viewerUserId,
+        postId: visiblePost.id
+      }
+    },
+    select: {
+      id: true
+    }
+  });
+
+  if (existingLike) {
+    throw new AppError("Post already liked", 409);
+  }
+
+  await prisma.postLike.create({
+    data: {
+      userId: viewerUserId,
+      postId: visiblePost.id
+    }
+  });
+}
+
+export async function unlikePost({ postId, viewerUserId }: UnlikePostServiceInput) {
+  const visiblePost = await assertPostVisibleForViewer({
+    postId,
+    viewerUserId
+  });
+
+  const existingLike = await prisma.postLike.findUnique({
+    where: {
+      userId_postId: {
+        userId: viewerUserId,
+        postId: visiblePost.id
+      }
+    },
+    select: {
+      id: true
+    }
+  });
+
+  if (!existingLike) {
+    throw new AppError("Post like not found", 404);
+  }
+
+  await prisma.postLike.delete({
+    where: {
+      userId_postId: {
+        userId: viewerUserId,
+        postId: visiblePost.id
+      }
+    }
+  });
 }
 
 export async function getProfilePosts({ params, viewerUserId, query }: GetProfilePostsInput) {
