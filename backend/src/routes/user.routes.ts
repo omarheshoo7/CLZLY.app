@@ -5,6 +5,7 @@ import {
   followUser,
   getFollowersList,
   getMyFollowRequests,
+  getMyLikedPosts,
   getProfile,
   getMySearchHistory,
   getFollowingList,
@@ -49,6 +50,15 @@ router.patch(
 );
 
 router.get("/me/follow-requests", authMiddleware, getMyFollowRequests);
+
+router.get(
+  "/me/liked-posts",
+  authMiddleware,
+  validateRequest({
+    query: profilePostsQuerySchema
+  }),
+  getMyLikedPosts
+);
 
 router.delete(
   "/me/followers/:username",

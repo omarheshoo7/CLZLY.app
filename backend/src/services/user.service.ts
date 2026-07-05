@@ -8,6 +8,8 @@ import type {
   UserProfileParams,
   UserSearchQuery
 } from "../schemas/user.schema";
+import type { ProfilePostsQuery } from "../schemas/post.schema";
+import { addLikeMetadataToPosts } from "./post.service";
 import { AppError } from "../utils/errors";
 
 const publicUserCardSelect = {
@@ -88,6 +90,11 @@ type GetSearchHistoryInput = {
 
 type ClearSearchHistoryInput = {
   userId: string;
+};
+
+type GetLikedPostsInput = {
+  userId: string;
+  query: ProfilePostsQuery;
 };
 
 const followRowSelect = {
@@ -241,6 +248,105 @@ export async function clearSearchHistory({ userId }: ClearSearchHistoryInput) {
       searcherId: userId
     }
   });
+}
+
+export async function getLikedPosts({ userId, query }: GetLikedPostsInput) {
+  let cursorLike: { id: string; userId: string; createdAt: Date } | null = null;
+
+  if (query.cursor) {
+    cursorLike = await prisma.postLike.findUnique({
+      where: {
+        id: query.cursor
+      },
+      select: {
+        id: true,
+        userId: true,
+        createdAt: true
+      }
+    });
+
+    if (!cursorLike || cursorLike.userId !== userId) {
+      throw new AppError("Invalid cursor", 400);
+    }
+  }
+
+  const likedPostRows = await prisma.postLike.findMany({
+    where: {
+      userId,
+      post: {
+        author: {
+          isDisabled: false,
+          deletedAt: null,
+          OR: [
+            {
+              id: userId
+            },
+            {
+              isPrivate: false
+            },
+            {
+              followers: {
+                some: {
+                  followerId: userId,
+                  status: "ACCEPTED"
+                }
+              }
+            }
+          ]
+        }
+      },
+      ...(cursorLike
+        ? {
+            OR: [
+              {
+                createdAt: {
+                  lt: cursorLike.createdAt
+                }
+              },
+              {
+                createdAt: cursorLike.createdAt,
+                id: {
+                  lt: cursorLike.id
+                }
+              }
+            ]
+          }
+        : {})
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: query.limit + 1,
+    select: {
+      id: true,
+      post: {
+        select: {
+          id: true,
+          authorId: true,
+          content: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      }
+    }
+  });
+
+  const hasMore = likedPostRows.length > query.limit;
+  const likedPostsPage = hasMore ? likedPostRows.slice(0, query.limit) : likedPostRows;
+  const posts = likedPostsPage.map((likedPostRow) => likedPostRow.post);
+  const nextCursor = hasMore && likedPostsPage.length > 0
+    ? likedPostsPage[likedPostsPage.length - 1].id
+    : null;
+  const postsWithLikeMetadata = await addLikeMetadataToPosts({
+    posts,
+    viewerUserId: userId
+  });
+
+  return {
+    posts: postsWithLikeMetadata,
+    pagination: {
+      nextCursor,
+      hasMore
+    }
+  };
 }
 
 export async function getIncomingFollowRequests({ userId }: { userId: string }) {

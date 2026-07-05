@@ -7,6 +7,7 @@ import {
   getFollowers,
   getIncomingFollowRequests,
   getFollowing,
+  getLikedPosts,
   getSearchHistory,
   getUserProfile,
   removeFollower,
@@ -24,6 +25,7 @@ import type {
   UserProfileParams,
   UserSearchQuery
 } from "../schemas/user.schema";
+import type { ProfilePostsQuery } from "../schemas/post.schema";
 
 export async function searchUserProfiles(req: Request, res: Response, next: NextFunction) {
   try {
@@ -63,6 +65,30 @@ export async function getMySearchHistory(req: Request, res: Response, next: Next
       message: "Search history retrieved successfully",
       data: {
         users
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getMyLikedPosts(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user) {
+      throw new AppError("Authorization is required", 401);
+    }
+
+    const { posts, pagination } = await getLikedPosts({
+      userId: req.user.userId,
+      query: req.query as unknown as ProfilePostsQuery
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Liked posts retrieved successfully",
+      data: {
+        posts,
+        pagination
       }
     });
   } catch (error) {
