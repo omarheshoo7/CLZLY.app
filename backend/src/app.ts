@@ -5,6 +5,7 @@ import { env } from "./config/env";
 import healthRoutes from "./routes/health.routes";
 import devRoutes from "./routes/dev.routes";
 import authRoutes from "./routes/auth.routes";
+import feedRoutes from "./routes/feed.routes";
 import postRoutes from "./routes/post.routes";
 import userRoutes from "./routes/user.routes";
 import { errorMiddleware } from "./middleware/error.middleware";
@@ -24,6 +25,7 @@ app.use(requestLogger);
 
 app.use("/api/health", healthRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/feed", feedRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/users", userRoutes);
 
