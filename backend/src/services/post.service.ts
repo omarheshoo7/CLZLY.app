@@ -61,7 +61,7 @@ type GetPostByIdInput = {
   viewerUserId: string;
 };
 
-async function assertPostVisibleForViewer({
+export async function assertPostVisibleForViewer({
   postId,
   viewerUserId
 }: {

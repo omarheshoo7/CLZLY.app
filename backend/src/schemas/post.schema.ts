@@ -23,6 +23,20 @@ export const deletePostParamsSchema = z
   })
   .strict();
 
+export const createCommentSchema = z
+  .object({
+    content: z
+      .string()
+      .transform((value) => value.trim())
+      .pipe(
+        z
+          .string()
+          .min(1, "Comment content is required")
+          .max(1000, "Comment content must be at most 1000 characters")
+      )
+  })
+  .strict();
+
 export const profilePostsQuerySchema = z
   .object({
     limit: z.coerce
@@ -39,5 +53,6 @@ export const profilePostsQuerySchema = z
   .strict();
 
 export type CreatePostInput = z.infer<typeof createPostSchema>;
+export type CreateCommentInput = z.infer<typeof createCommentSchema>;
 export type DeletePostParams = z.infer<typeof deletePostParamsSchema>;
 export type ProfilePostsQuery = z.infer<typeof profilePostsQuerySchema>;

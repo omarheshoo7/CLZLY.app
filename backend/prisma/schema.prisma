@@ -32,6 +32,7 @@ model User {
   following     Follow[] @relation("UserFollowing")
   posts         Post[]
   postLikes     PostLike[]
+  comments      Comment[]
   searchHistoryEntries     UserSearchHistory[] @relation("UserSearchHistorySearcher")
   searchedByHistoryEntries  UserSearchHistory[] @relation("UserSearchHistorySearchedUser")
 
@@ -50,9 +51,25 @@ model Post {
 
   author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
   likes  PostLike[]
+  comments Comment[]
 
   @@index([authorId])
   @@index([createdAt])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+  @@index([authorId])
 }
 
 model PostLike {

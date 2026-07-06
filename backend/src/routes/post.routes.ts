@@ -1,8 +1,9 @@
 import { Router } from "express";
+import { createCommentHandler } from "../controllers/comment.controller";
 import { createPostHandler, deletePostHandler, getPostHandler, likePostHandler, unlikePostHandler, updatePostHandler } from "../controllers/post.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { validateRequest } from "../middleware/validate.middleware";
-import { createPostSchema, deletePostParamsSchema } from "../schemas/post.schema";
+import { createCommentSchema, createPostSchema, deletePostParamsSchema } from "../schemas/post.schema";
 
 const router = Router();
 
@@ -22,6 +23,16 @@ router.post(
     params: deletePostParamsSchema
   }),
   likePostHandler
+);
+
+router.post(
+  "/:postId/comments",
+  authMiddleware,
+  validateRequest({
+    params: deletePostParamsSchema,
+    body: createCommentSchema
+  }),
+  createCommentHandler
 );
 
 router.get(
