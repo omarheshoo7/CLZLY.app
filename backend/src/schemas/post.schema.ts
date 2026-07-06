@@ -52,7 +52,23 @@ export const profilePostsQuerySchema = z
   })
   .strict();
 
+export const listPostCommentsQuerySchema = z
+  .object({
+    limit: z.coerce
+      .number()
+      .int("Limit must be an integer")
+      .min(1, "Limit must be at least 1")
+      .max(50, "Limit must be at most 50")
+      .default(20),
+    cursor: z.preprocess(
+      (value) => (typeof value === "string" ? value.trim() : value),
+      z.string().min(1, "Cursor is required").optional()
+    )
+  })
+  .strict();
+
 export type CreatePostInput = z.infer<typeof createPostSchema>;
 export type CreateCommentInput = z.infer<typeof createCommentSchema>;
 export type DeletePostParams = z.infer<typeof deletePostParamsSchema>;
 export type ProfilePostsQuery = z.infer<typeof profilePostsQuerySchema>;
+export type ListPostCommentsQuery = z.infer<typeof listPostCommentsQuerySchema>;
