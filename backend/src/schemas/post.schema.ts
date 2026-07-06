@@ -23,6 +23,19 @@ export const deletePostParamsSchema = z
   })
   .strict();
 
+export const deleteCommentParamsSchema = z
+  .object({
+    postId: z
+      .string()
+      .transform((value) => value.trim())
+      .pipe(z.string().min(1, "Post id is required")),
+    commentId: z
+      .string()
+      .transform((value) => value.trim())
+      .pipe(z.string().min(1, "Comment id is required"))
+  })
+  .strict();
+
 export const createCommentSchema = z
   .object({
     content: z
@@ -70,5 +83,6 @@ export const listPostCommentsQuerySchema = z
 export type CreatePostInput = z.infer<typeof createPostSchema>;
 export type CreateCommentInput = z.infer<typeof createCommentSchema>;
 export type DeletePostParams = z.infer<typeof deletePostParamsSchema>;
+export type DeleteCommentParams = z.infer<typeof deleteCommentParamsSchema>;
 export type ProfilePostsQuery = z.infer<typeof profilePostsQuerySchema>;
 export type ListPostCommentsQuery = z.infer<typeof listPostCommentsQuerySchema>;

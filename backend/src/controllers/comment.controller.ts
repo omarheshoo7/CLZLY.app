@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
-import type { CreateCommentInput, DeletePostParams, ListPostCommentsQuery } from "../schemas/post.schema";
-import { createComment, listPostComments } from "../services/comment.service";
+import type { CreateCommentInput, DeleteCommentParams, DeletePostParams, ListPostCommentsQuery } from "../schemas/post.schema";
+import { createComment, deleteComment, listPostComments } from "../services/comment.service";
 import { AppError } from "../utils/errors";
 
 export async function createCommentHandler(req: Request, res: Response, next: NextFunction) {
@@ -21,6 +21,29 @@ export async function createCommentHandler(req: Request, res: Response, next: Ne
       data: {
         comment
       }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deleteCommentHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user) {
+      throw new AppError("Authorization is required", 401);
+    }
+
+    const params = req.params as DeleteCommentParams;
+
+    await deleteComment({
+      postId: params.postId,
+      commentId: params.commentId,
+      viewerUserId: req.user.userId
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Comment deleted successfully"
     });
   } catch (error) {
     next(error);

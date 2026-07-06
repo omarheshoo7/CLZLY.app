@@ -24,6 +24,12 @@ type ListPostCommentsServiceInput = {
   query: ListPostCommentsQuery;
 };
 
+type DeleteCommentServiceInput = {
+  postId: string;
+  commentId: string;
+  viewerUserId: string;
+};
+
 export async function createComment({ postId, authorId, data }: CreateCommentServiceInput) {
   const visiblePost = await assertPostVisibleForViewer({
     postId,
@@ -81,6 +87,38 @@ export async function listPostComments({ postId, viewerUserId, query }: ListPost
       hasMore
     }
   };
+}
+
+export async function deleteComment({ postId, commentId, viewerUserId }: DeleteCommentServiceInput) {
+  const visiblePost = await assertPostVisibleForViewer({
+    postId,
+    viewerUserId
+  });
+
+  const comment = await prisma.comment.findFirst({
+    where: {
+      id: commentId,
+      postId: visiblePost.id
+    },
+    select: {
+      id: true,
+      authorId: true
+    }
+  });
+
+  if (!comment) {
+    throw new AppError("Comment not found", 404);
+  }
+
+  if (comment.authorId !== viewerUserId) {
+    throw new AppError("You can only delete your own comment", 403);
+  }
+
+  await prisma.comment.delete({
+    where: {
+      id: comment.id
+    }
+  });
 }
 
 async function getCommentCursorFilter({ cursor, postId }: { cursor: string; postId: string }) {
