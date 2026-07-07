@@ -51,6 +51,21 @@ export const userSearchQuerySchema = z
   })
   .strict();
 
+export const socialGraphQuerySchema = z
+  .object({
+    limit: z.coerce
+      .number()
+      .int("Limit must be an integer")
+      .min(1, "Limit must be at least 1")
+      .max(50, "Limit must be at most 50")
+      .default(20),
+    cursor: z.preprocess(
+      (value) => (typeof value === "string" ? value.trim() : value),
+      z.string().min(1, "Cursor is required").optional()
+    )
+  })
+  .strict();
+
 export const updateCurrentUserProfileSchema = z
   .object({
     displayName: nullableTrimmedString("Display name", 50).optional(),
@@ -72,5 +87,6 @@ export type UserProfileParams = z.infer<typeof userProfileParamsSchema>;
 export type FollowUserParams = z.infer<typeof followUserParamsSchema>;
 export type FollowRequestParams = z.infer<typeof followRequestParamsSchema>;
 export type UserSearchQuery = z.infer<typeof userSearchQuerySchema>;
+export type SocialGraphQuery = z.infer<typeof socialGraphQuerySchema>;
 export type UpdateCurrentUserProfileInput = z.infer<typeof updateCurrentUserProfileSchema>;
 export type UpdateCurrentUserPrivacyInput = z.infer<typeof updateCurrentUserPrivacySchema>;

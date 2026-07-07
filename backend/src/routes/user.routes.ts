@@ -22,6 +22,7 @@ import { validateRequest } from "../middleware/validate.middleware";
 import {
   followRequestParamsSchema,
   followUserParamsSchema,
+  socialGraphQuerySchema,
   updateCurrentUserPrivacySchema,
   updateCurrentUserProfileSchema,
   userProfileParamsSchema,
@@ -122,7 +123,8 @@ router.get(
   "/:username/followers",
   authMiddleware,
   validateRequest({
-    params: userProfileParamsSchema
+    params: userProfileParamsSchema,
+    query: socialGraphQuerySchema
   }),
   getFollowersList
 );
@@ -131,7 +133,8 @@ router.get(
   "/:username/following",
   authMiddleware,
   validateRequest({
-    params: userProfileParamsSchema
+    params: userProfileParamsSchema,
+    query: socialGraphQuerySchema
   }),
   getFollowingList
 );

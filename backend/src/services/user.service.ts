@@ -3,6 +3,7 @@ import { prisma } from "../prisma";
 import type {
   FollowRequestParams,
   FollowUserParams,
+  SocialGraphQuery,
   UpdateCurrentUserPrivacyInput,
   UpdateCurrentUserProfileInput,
   UserProfileParams,
@@ -62,6 +63,8 @@ type FollowRequestInput = {
 
 type FollowersListInput = {
   params: UserProfileParams;
+  query: SocialGraphQuery;
+  viewerUserId: string;
 };
 
 type GetUserProfileInput = {
@@ -185,6 +188,46 @@ async function getActiveUserByUsernameOrThrow(username: string) {
 
   if (!user || user.deletedAt || user.isDisabled) {
     throw new AppError("User profile not found", 404);
+  }
+
+  return user;
+}
+
+async function getVisibleSocialGraphUserOrThrow({ username, viewerUserId }: { username: string; viewerUserId: string }) {
+  const user = await prisma.user.findUnique({
+    where: {
+      username
+    },
+    select: {
+      id: true,
+      isPrivate: true,
+      isDisabled: true,
+      deletedAt: true
+    }
+  });
+
+  if (!user || user.deletedAt || user.isDisabled) {
+    throw new AppError("User profile not found", 404);
+  }
+
+  if (user.id === viewerUserId || !user.isPrivate) {
+    return user;
+  }
+
+  const existingFollow = await prisma.follow.findUnique({
+    where: {
+      followerId_followingId: {
+        followerId: viewerUserId,
+        followingId: user.id
+      }
+    },
+    select: {
+      status: true
+    }
+  });
+
+  if (existingFollow?.status !== "ACCEPTED") {
+    throw new AppError("You cannot view this user's posts", 403);
   }
 
   return user;
@@ -380,8 +423,43 @@ export async function getIncomingFollowRequests({ userId }: { userId: string }) 
   );
 }
 
-export async function getFollowers({ params }: FollowersListInput) {
-  const profileUser = await getActiveUserByUsernameOrThrow(params.username);
+export async function getFollowers({ params, query, viewerUserId }: FollowersListInput) {
+  const profileUser = await getVisibleSocialGraphUserOrThrow({
+    username: params.username,
+    viewerUserId
+  });
+
+  let cursorFollow: { id: string; followingId: string; status: string; createdAt: Date; follower: { isDisabled: boolean; deletedAt: Date | null } } | null = null;
+
+  if (query.cursor) {
+    cursorFollow = await prisma.follow.findUnique({
+      where: {
+        id: query.cursor
+      },
+      select: {
+        id: true,
+        followingId: true,
+        status: true,
+        createdAt: true,
+        follower: {
+          select: {
+            isDisabled: true,
+            deletedAt: true
+          }
+        }
+      }
+    });
+
+    if (
+      !cursorFollow ||
+      cursorFollow.followingId !== profileUser.id ||
+      cursorFollow.status !== "ACCEPTED" ||
+      cursorFollow.follower.isDisabled ||
+      cursorFollow.follower.deletedAt
+    ) {
+      throw new AppError("Invalid cursor", 400);
+    }
+  }
 
   const followerRelationships = await prisma.follow.findMany({
     where: {
@@ -390,21 +468,84 @@ export async function getFollowers({ params }: FollowersListInput) {
       follower: {
         isDisabled: false,
         deletedAt: null
-      }
+      },
+      ...(cursorFollow
+        ? {
+            OR: [
+              {
+                createdAt: {
+                  lt: cursorFollow.createdAt
+                }
+              },
+              {
+                createdAt: cursorFollow.createdAt,
+                id: {
+                  lt: cursorFollow.id
+                }
+              }
+            ]
+          }
+        : {})
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: query.limit + 1,
     select: {
+      id: true,
       follower: {
         select: publicUserCardSelect
       }
     }
   });
 
-  return followerRelationships.map(({ follower }) => follower);
+  const hasMore = followerRelationships.length > query.limit;
+  const followerRelationshipsPage = hasMore ? followerRelationships.slice(0, query.limit) : followerRelationships;
+
+  return {
+    followers: followerRelationshipsPage.map(({ follower }) => follower),
+    pagination: {
+      nextCursor: hasMore ? followerRelationshipsPage[followerRelationshipsPage.length - 1]?.id ?? null : null,
+      hasMore
+    }
+  };
 }
 
-export async function getFollowing({ params }: FollowersListInput) {
-  const profileUser = await getActiveUserByUsernameOrThrow(params.username);
+export async function getFollowing({ params, query, viewerUserId }: FollowersListInput) {
+  const profileUser = await getVisibleSocialGraphUserOrThrow({
+    username: params.username,
+    viewerUserId
+  });
+
+  let cursorFollow: { id: string; followerId: string; status: string; createdAt: Date; following: { isDisabled: boolean; deletedAt: Date | null } } | null = null;
+
+  if (query.cursor) {
+    cursorFollow = await prisma.follow.findUnique({
+      where: {
+        id: query.cursor
+      },
+      select: {
+        id: true,
+        followerId: true,
+        status: true,
+        createdAt: true,
+        following: {
+          select: {
+            isDisabled: true,
+            deletedAt: true
+          }
+        }
+      }
+    });
+
+    if (
+      !cursorFollow ||
+      cursorFollow.followerId !== profileUser.id ||
+      cursorFollow.status !== "ACCEPTED" ||
+      cursorFollow.following.isDisabled ||
+      cursorFollow.following.deletedAt
+    ) {
+      throw new AppError("Invalid cursor", 400);
+    }
+  }
 
   const followingRelationships = await prisma.follow.findMany({
     where: {
@@ -413,17 +554,45 @@ export async function getFollowing({ params }: FollowersListInput) {
       following: {
         isDisabled: false,
         deletedAt: null
-      }
+      },
+      ...(cursorFollow
+        ? {
+            OR: [
+              {
+                createdAt: {
+                  lt: cursorFollow.createdAt
+                }
+              },
+              {
+                createdAt: cursorFollow.createdAt,
+                id: {
+                  lt: cursorFollow.id
+                }
+              }
+            ]
+          }
+        : {})
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: query.limit + 1,
     select: {
+      id: true,
       following: {
         select: publicUserCardSelect
       }
     }
   });
 
-  return followingRelationships.map(({ following }) => following);
+  const hasMore = followingRelationships.length > query.limit;
+  const followingRelationshipsPage = hasMore ? followingRelationships.slice(0, query.limit) : followingRelationships;
+
+  return {
+    following: followingRelationshipsPage.map(({ following }) => following),
+    pagination: {
+      nextCursor: hasMore ? followingRelationshipsPage[followingRelationshipsPage.length - 1]?.id ?? null : null,
+      hasMore
+    }
+  };
 }
 
 export async function acceptFollowRequest({ params, receiverUserId }: FollowRequestInput) {

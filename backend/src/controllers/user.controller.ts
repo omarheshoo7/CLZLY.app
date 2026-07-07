@@ -20,6 +20,7 @@ import {
 import type {
   FollowRequestParams,
   FollowUserParams,
+  SocialGraphQuery,
   UpdateCurrentUserPrivacyInput,
   UpdateCurrentUserProfileInput,
   UserProfileParams,
@@ -143,15 +144,18 @@ export async function getFollowersList(req: Request, res: Response, next: NextFu
       throw new AppError("Authorization is required", 401);
     }
 
-    const users = await getFollowers({
-      params: req.params as UserProfileParams
+    const { followers, pagination } = await getFollowers({
+      params: req.params as UserProfileParams,
+      query: req.query as unknown as SocialGraphQuery,
+      viewerUserId: req.user.userId
     });
 
     res.status(200).json({
       status: "success",
       message: "Followers retrieved successfully",
       data: {
-        users
+        followers,
+        pagination
       }
     });
   } catch (error) {
@@ -165,15 +169,18 @@ export async function getFollowingList(req: Request, res: Response, next: NextFu
       throw new AppError("Authorization is required", 401);
     }
 
-    const users = await getFollowing({
-      params: req.params as UserProfileParams
+    const { following, pagination } = await getFollowing({
+      params: req.params as UserProfileParams,
+      query: req.query as unknown as SocialGraphQuery,
+      viewerUserId: req.user.userId
     });
 
     res.status(200).json({
       status: "success",
       message: "Following retrieved successfully",
       data: {
-        users
+        following,
+        pagination
       }
     });
   } catch (error) {
