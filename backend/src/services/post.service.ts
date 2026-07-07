@@ -19,9 +19,10 @@ type BasePost = {
   updatedAt: Date;
 };
 
-type PostWithLikeMetadata = BasePost & {
+type PostWithMetadata = BasePost & {
   likesCount: number;
   likedByMe: boolean;
+  commentsCount: number;
 };
 
 type CreatePostServiceInput = {
@@ -118,53 +119,35 @@ export async function assertPostVisibleForViewer({
   };
 }
 
-async function addLikeMetadataToPost({
+async function addPostMetadataToPost({
   post,
   viewerUserId
 }: {
   post: BasePost;
   viewerUserId: string;
-}): Promise<PostWithLikeMetadata> {
-  const [likeCount, viewerLike] = await Promise.all([
-    prisma.postLike.count({
-      where: {
-        postId: post.id
-      }
-    }),
-    prisma.postLike.findUnique({
-      where: {
-        userId_postId: {
-          userId: viewerUserId,
-          postId: post.id
-        }
-      },
-      select: {
-        id: true
-      }
-    })
-  ]);
+}): Promise<PostWithMetadata> {
+  const [postWithMetadata] = await addPostMetadataToPosts({
+    posts: [post],
+    viewerUserId
+  });
 
-  return {
-    ...post,
-    likesCount: likeCount,
-    likedByMe: Boolean(viewerLike)
-  };
+  return postWithMetadata;
 }
 
-export async function addLikeMetadataToPosts({
+export async function addPostMetadataToPosts({
   posts,
   viewerUserId
 }: {
   posts: BasePost[];
   viewerUserId: string;
-}): Promise<PostWithLikeMetadata[]> {
+}): Promise<PostWithMetadata[]> {
   if (posts.length === 0) {
     return [];
   }
 
   const postIds = posts.map((post) => post.id);
 
-  const [viewerLikes, likeGroups] = await Promise.all([
+  const [viewerLikes, likeGroups, commentGroups] = await Promise.all([
     prisma.postLike.findMany({
       where: {
         userId: viewerUserId,
@@ -186,6 +169,21 @@ export async function addLikeMetadataToPosts({
       _count: {
         postId: true
       }
+    }),
+    prisma.comment.groupBy({
+      by: ["postId"],
+      where: {
+        postId: {
+          in: postIds
+        },
+        author: {
+          isDisabled: false,
+          deletedAt: null
+        }
+      },
+      _count: {
+        postId: true
+      }
     })
   ]);
 
@@ -193,11 +191,15 @@ export async function addLikeMetadataToPosts({
   const likeCountByPostId = new Map(
     likeGroups.map((group) => [group.postId, group._count.postId])
   );
+  const commentCountByPostId = new Map(
+    commentGroups.map((group) => [group.postId, group._count.postId])
+  );
 
   return posts.map((post) => ({
     ...post,
     likesCount: likeCountByPostId.get(post.id) ?? 0,
-    likedByMe: likedPostIds.has(post.id)
+    likedByMe: likedPostIds.has(post.id),
+    commentsCount: commentCountByPostId.get(post.id) ?? 0
   }));
 }
 
@@ -283,7 +285,7 @@ export async function getPostById({ postId, viewerUserId }: GetPostByIdInput) {
 
   if (viewerUserId === post.authorId || !post.author.isPrivate) {
     const { author: _author, ...publicPost } = post;
-    return addLikeMetadataToPost({
+    return addPostMetadataToPost({
       post: publicPost,
       viewerUserId
     });
@@ -306,7 +308,7 @@ export async function getPostById({ postId, viewerUserId }: GetPostByIdInput) {
   }
 
   const { author: _author, ...publicPost } = post;
-  return addLikeMetadataToPost({
+  return addPostMetadataToPost({
     post: publicPost,
     viewerUserId
   });
@@ -460,13 +462,13 @@ export async function getProfilePosts({ params, viewerUserId, query }: GetProfil
   const hasMore = fetchedPosts.length > query.limit;
   const posts = hasMore ? fetchedPosts.slice(0, query.limit) : fetchedPosts;
   const nextCursor = hasMore && posts.length > 0 ? posts[posts.length - 1].id : null;
-  const postsWithLikeMetadata = await addLikeMetadataToPosts({
+  const postsWithMetadata = await addPostMetadataToPosts({
     posts,
     viewerUserId
   });
 
   return {
-    posts: postsWithLikeMetadata,
+    posts: postsWithMetadata,
     pagination: {
       nextCursor,
       hasMore

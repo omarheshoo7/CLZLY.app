@@ -9,7 +9,7 @@ import type {
   UserSearchQuery
 } from "../schemas/user.schema";
 import type { ProfilePostsQuery } from "../schemas/post.schema";
-import { addLikeMetadataToPosts } from "./post.service";
+import { addPostMetadataToPosts } from "./post.service";
 import { AppError } from "../utils/errors";
 
 const publicUserCardSelect = {
@@ -335,13 +335,13 @@ export async function getLikedPosts({ userId, query }: GetLikedPostsInput) {
   const nextCursor = hasMore && likedPostsPage.length > 0
     ? likedPostsPage[likedPostsPage.length - 1].id
     : null;
-  const postsWithLikeMetadata = await addLikeMetadataToPosts({
+  const postsWithMetadata = await addPostMetadataToPosts({
     posts,
     viewerUserId: userId
   });
 
   return {
-    posts: postsWithLikeMetadata,
+    posts: postsWithMetadata,
     pagination: {
       nextCursor,
       hasMore

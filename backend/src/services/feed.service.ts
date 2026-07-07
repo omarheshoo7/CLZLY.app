@@ -1,6 +1,6 @@
 import { prisma } from "../prisma";
 import type { ProfilePostsQuery } from "../schemas/post.schema";
-import { addLikeMetadataToPosts } from "./post.service";
+import { addPostMetadataToPosts } from "./post.service";
 import { AppError } from "../utils/errors";
 
 const postSelect = {
@@ -105,13 +105,13 @@ export async function getFeed({ viewerUserId, query }: GetFeedInput) {
   const hasMore = fetchedPosts.length > query.limit;
   const posts = hasMore ? fetchedPosts.slice(0, query.limit) : fetchedPosts;
   const nextCursor = hasMore && posts.length > 0 ? posts[posts.length - 1].id : null;
-  const postsWithLikeMetadata = await addLikeMetadataToPosts({
+  const postsWithMetadata = await addPostMetadataToPosts({
     posts,
     viewerUserId
   });
 
   return {
-    posts: postsWithLikeMetadata,
+    posts: postsWithMetadata,
     pagination: {
       nextCursor,
       hasMore
