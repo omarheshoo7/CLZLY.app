@@ -100,6 +100,19 @@ type GetLikedPostsInput = {
   query: ProfilePostsQuery;
 };
 
+type GetSavedPostsInput = {
+  userId: string;
+  query: ProfilePostsQuery;
+};
+
+type SavedPostCursorAuthor = {
+  id: string;
+  isPrivate: boolean;
+  isDisabled: boolean;
+  deletedAt: Date | null;
+  followers: { id: string }[];
+};
+
 const followRowSelect = {
   id: true,
   followerId: true,
@@ -157,6 +170,20 @@ function toPublicUserCard(user: SearchHistoryUser): PublicUserCard {
   const { isDisabled: _isDisabled, deletedAt: _deletedAt, ...safeUser } = user;
 
   return safeUser;
+}
+
+function canViewSavedPostCursorAuthor({
+  author,
+  userId
+}: {
+  author: SavedPostCursorAuthor;
+  userId: string;
+}) {
+  if (author.isDisabled || author.deletedAt) {
+    return false;
+  }
+
+  return author.id === userId || !author.isPrivate || author.followers.length > 0;
 }
 
 async function getOwnedFollowRequestOrThrow({ followId, receiverUserId }: { followId: string; receiverUserId: string }) {
@@ -385,6 +412,166 @@ export async function getLikedPosts({ userId, query }: GetLikedPostsInput) {
 
   return {
     posts: postsWithMetadata,
+    pagination: {
+      nextCursor,
+      hasMore
+    }
+  };
+}
+
+export async function getSavedPosts({ userId, query }: GetSavedPostsInput) {
+  let cursorSavedPost: {
+    id: string;
+    userId: string;
+    createdAt: Date;
+    post: {
+      author: SavedPostCursorAuthor;
+    };
+  } | null = null;
+
+  if (query.cursor) {
+    cursorSavedPost = await prisma.savedPost.findUnique({
+      where: {
+        id: query.cursor
+      },
+      select: {
+        id: true,
+        userId: true,
+        createdAt: true,
+        post: {
+          select: {
+            author: {
+              select: {
+                id: true,
+                isPrivate: true,
+                isDisabled: true,
+                deletedAt: true,
+                followers: {
+                  where: {
+                    followerId: userId,
+                    status: "ACCEPTED"
+                  },
+                  select: {
+                    id: true
+                  },
+                  take: 1
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (
+      !cursorSavedPost ||
+      cursorSavedPost.userId !== userId ||
+      !canViewSavedPostCursorAuthor({
+        author: cursorSavedPost.post.author,
+        userId
+      })
+    ) {
+      throw new AppError("Invalid cursor", 400);
+    }
+  }
+
+  const savedPostRows = await prisma.savedPost.findMany({
+    where: {
+      userId,
+      post: {
+        author: {
+          isDisabled: false,
+          deletedAt: null,
+          OR: [
+            {
+              id: userId
+            },
+            {
+              isPrivate: false
+            },
+            {
+              followers: {
+                some: {
+                  followerId: userId,
+                  status: "ACCEPTED"
+                }
+              }
+            }
+          ]
+        }
+      },
+      ...(cursorSavedPost
+        ? {
+            OR: [
+              {
+                createdAt: {
+                  lt: cursorSavedPost.createdAt
+                }
+              },
+              {
+                createdAt: cursorSavedPost.createdAt,
+                id: {
+                  lt: cursorSavedPost.id
+                }
+              }
+            ]
+          }
+        : {})
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: query.limit + 1,
+    select: {
+      id: true,
+      createdAt: true,
+      post: {
+        select: {
+          id: true,
+          authorId: true,
+          content: true,
+          createdAt: true,
+          updatedAt: true,
+          author: {
+            select: publicUserCardSelect
+          }
+        }
+      }
+    }
+  });
+
+  const hasMore = savedPostRows.length > query.limit;
+  const savedPostsPage = hasMore ? savedPostRows.slice(0, query.limit) : savedPostRows;
+  const nextCursor = hasMore && savedPostsPage.length > 0
+    ? savedPostsPage[savedPostsPage.length - 1].id
+    : null;
+  const basePosts = savedPostsPage.map((savedPostRow) => ({
+    id: savedPostRow.post.id,
+    authorId: savedPostRow.post.authorId,
+    content: savedPostRow.post.content,
+    createdAt: savedPostRow.post.createdAt,
+    updatedAt: savedPostRow.post.updatedAt
+  }));
+  const postsWithMetadata = await addPostMetadataToPosts({
+    posts: basePosts,
+    viewerUserId: userId
+  });
+
+  return {
+    posts: savedPostsPage.map((savedPostRow, index) => {
+      const postWithMetadata = postsWithMetadata[index];
+
+      return {
+        id: savedPostRow.post.id,
+        content: savedPostRow.post.content,
+        imageUrl: null,
+        createdAt: savedPostRow.post.createdAt,
+        updatedAt: savedPostRow.post.updatedAt,
+        author: savedPostRow.post.author,
+        likesCount: postWithMetadata.likesCount,
+        likedByMe: postWithMetadata.likedByMe,
+        commentsCount: postWithMetadata.commentsCount,
+        savedAt: savedPostRow.createdAt
+      };
+    }),
     pagination: {
       nextCursor,
       hasMore
