@@ -40,7 +40,17 @@ type LikePostServiceInput = {
   viewerUserId: string;
 };
 
+type SavePostServiceInput = {
+  postId: string;
+  viewerUserId: string;
+};
+
 type UnlikePostServiceInput = {
+  postId: string;
+  viewerUserId: string;
+};
+
+type UnsavePostServiceInput = {
   postId: string;
   viewerUserId: string;
 };
@@ -344,6 +354,36 @@ export async function likePost({ postId, viewerUserId }: LikePostServiceInput) {
   });
 }
 
+export async function savePost({ postId, viewerUserId }: SavePostServiceInput) {
+  const visiblePost = await assertPostVisibleForViewer({
+    postId,
+    viewerUserId
+  });
+
+  const existingSavedPost = await prisma.savedPost.findUnique({
+    where: {
+      userId_postId: {
+        userId: viewerUserId,
+        postId: visiblePost.id
+      }
+    },
+    select: {
+      id: true
+    }
+  });
+
+  if (existingSavedPost) {
+    throw new AppError("Post already saved", 409);
+  }
+
+  await prisma.savedPost.create({
+    data: {
+      userId: viewerUserId,
+      postId: visiblePost.id
+    }
+  });
+}
+
 export async function unlikePost({ postId, viewerUserId }: UnlikePostServiceInput) {
   const visiblePost = await assertPostVisibleForViewer({
     postId,
@@ -367,6 +407,38 @@ export async function unlikePost({ postId, viewerUserId }: UnlikePostServiceInpu
   }
 
   await prisma.postLike.delete({
+    where: {
+      userId_postId: {
+        userId: viewerUserId,
+        postId: visiblePost.id
+      }
+    }
+  });
+}
+
+export async function unsavePost({ postId, viewerUserId }: UnsavePostServiceInput) {
+  const visiblePost = await assertPostVisibleForViewer({
+    postId,
+    viewerUserId
+  });
+
+  const existingSavedPost = await prisma.savedPost.findUnique({
+    where: {
+      userId_postId: {
+        userId: viewerUserId,
+        postId: visiblePost.id
+      }
+    },
+    select: {
+      id: true
+    }
+  });
+
+  if (!existingSavedPost) {
+    throw new AppError("Saved post not found", 404);
+  }
+
+  await prisma.savedPost.delete({
     where: {
       userId_postId: {
         userId: viewerUserId,

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { createCommentHandler, deleteCommentHandler, listPostCommentsHandler } from "../controllers/comment.controller";
-import { createPostHandler, deletePostHandler, getPostHandler, likePostHandler, unlikePostHandler, updatePostHandler } from "../controllers/post.controller";
+import { createPostHandler, deletePostHandler, getPostHandler, likePostHandler, savePostHandler, unlikePostHandler, unsavePostHandler, updatePostHandler } from "../controllers/post.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { validateRequest } from "../middleware/validate.middleware";
 import {
@@ -29,6 +29,15 @@ router.post(
     params: deletePostParamsSchema
   }),
   likePostHandler
+);
+
+router.post(
+  "/:postId/save",
+  authMiddleware,
+  validateRequest({
+    params: deletePostParamsSchema
+  }),
+  savePostHandler
 );
 
 router.post(
@@ -77,6 +86,15 @@ router.delete(
     params: deletePostParamsSchema
   }),
   unlikePostHandler
+);
+
+router.delete(
+  "/:postId/save",
+  authMiddleware,
+  validateRequest({
+    params: deletePostParamsSchema
+  }),
+  unsavePostHandler
 );
 
 router.delete(
