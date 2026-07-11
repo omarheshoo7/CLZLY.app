@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   acceptMyFollowRequest,
+  clearMySavedPosts,
   clearMySearchHistory,
   followUser,
   getFollowersList,
@@ -70,6 +71,8 @@ router.get(
   }),
   getMySavedPosts
 );
+
+router.delete("/me/saved-posts", authMiddleware, clearMySavedPosts);
 
 router.delete(
   "/me/followers/:username",

@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../utils/errors";
 import {
   acceptFollowRequest,
+  clearSavedPosts,
   clearSearchHistory,
   followUser as createFollowRelationship,
   getFollowers,
@@ -115,6 +116,25 @@ export async function getMySavedPosts(req: Request, res: Response, next: NextFun
         posts,
         pagination
       }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function clearMySavedPosts(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user) {
+      throw new AppError("Authorization is required", 401);
+    }
+
+    await clearSavedPosts({
+      userId: req.user.userId
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Saved posts cleared successfully"
     });
   } catch (error) {
     next(error);

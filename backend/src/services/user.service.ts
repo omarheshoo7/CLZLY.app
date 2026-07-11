@@ -95,6 +95,10 @@ type ClearSearchHistoryInput = {
   userId: string;
 };
 
+type ClearSavedPostsInput = {
+  userId: string;
+};
+
 type GetLikedPostsInput = {
   userId: string;
   query: ProfilePostsQuery;
@@ -316,6 +320,14 @@ export async function clearSearchHistory({ userId }: ClearSearchHistoryInput) {
   await prisma.userSearchHistory.deleteMany({
     where: {
       searcherId: userId
+    }
+  });
+}
+
+export async function clearSavedPosts({ userId }: ClearSavedPostsInput) {
+  await prisma.savedPost.deleteMany({
+    where: {
+      userId
     }
   });
 }
