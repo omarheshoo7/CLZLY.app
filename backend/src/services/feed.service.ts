@@ -38,6 +38,7 @@ export async function getFeed({ viewerUserId, query }: GetFeedInput) {
           isDisabled: boolean;
           deletedAt: Date | null;
         };
+        hiddenBy: { id: string }[];
       }
     | null = null;
 
@@ -55,6 +56,15 @@ export async function getFeed({ viewerUserId, query }: GetFeedInput) {
             isDisabled: true,
             deletedAt: true
           }
+        },
+        hiddenBy: {
+          where: {
+            userId: viewerUserId
+          },
+          select: {
+            id: true
+          },
+          take: 1
         }
       }
     });
@@ -63,7 +73,8 @@ export async function getFeed({ viewerUserId, query }: GetFeedInput) {
       cursorPost &&
       visibleAuthorIds.includes(cursorPost.authorId) &&
       !cursorPost.author.isDisabled &&
-      cursorPost.author.deletedAt === null;
+      cursorPost.author.deletedAt === null &&
+      cursorPost.hiddenBy.length === 0;
 
     if (!cursorIsVisible) {
       throw new AppError("Invalid cursor", 400);
@@ -78,6 +89,11 @@ export async function getFeed({ viewerUserId, query }: GetFeedInput) {
       author: {
         isDisabled: false,
         deletedAt: null
+      },
+      hiddenBy: {
+        none: {
+          userId: viewerUserId
+        }
       },
       ...(cursorPost
         ? {
