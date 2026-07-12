@@ -45,12 +45,22 @@ type SavePostServiceInput = {
   viewerUserId: string;
 };
 
+type HidePostServiceInput = {
+  postId: string;
+  viewerUserId: string;
+};
+
 type UnlikePostServiceInput = {
   postId: string;
   viewerUserId: string;
 };
 
 type UnsavePostServiceInput = {
+  postId: string;
+  viewerUserId: string;
+};
+
+type UnhidePostServiceInput = {
   postId: string;
   viewerUserId: string;
 };
@@ -384,6 +394,40 @@ export async function savePost({ postId, viewerUserId }: SavePostServiceInput) {
   });
 }
 
+export async function hidePost({ postId, viewerUserId }: HidePostServiceInput) {
+  const visiblePost = await assertPostVisibleForViewer({
+    postId,
+    viewerUserId
+  });
+
+  if (visiblePost.authorId === viewerUserId) {
+    throw new AppError("You cannot hide your own post", 400);
+  }
+
+  const existingHiddenPost = await prisma.hiddenPost.findUnique({
+    where: {
+      userId_postId: {
+        userId: viewerUserId,
+        postId: visiblePost.id
+      }
+    },
+    select: {
+      id: true
+    }
+  });
+
+  if (existingHiddenPost) {
+    throw new AppError("Post already hidden", 409);
+  }
+
+  await prisma.hiddenPost.create({
+    data: {
+      userId: viewerUserId,
+      postId: visiblePost.id
+    }
+  });
+}
+
 export async function unlikePost({ postId, viewerUserId }: UnlikePostServiceInput) {
   const visiblePost = await assertPostVisibleForViewer({
     postId,
@@ -439,6 +483,38 @@ export async function unsavePost({ postId, viewerUserId }: UnsavePostServiceInpu
   }
 
   await prisma.savedPost.delete({
+    where: {
+      userId_postId: {
+        userId: viewerUserId,
+        postId: visiblePost.id
+      }
+    }
+  });
+}
+
+export async function unhidePost({ postId, viewerUserId }: UnhidePostServiceInput) {
+  const visiblePost = await assertPostVisibleForViewer({
+    postId,
+    viewerUserId
+  });
+
+  const existingHiddenPost = await prisma.hiddenPost.findUnique({
+    where: {
+      userId_postId: {
+        userId: viewerUserId,
+        postId: visiblePost.id
+      }
+    },
+    select: {
+      id: true
+    }
+  });
+
+  if (!existingHiddenPost) {
+    throw new AppError("Hidden post not found", 404);
+  }
+
+  await prisma.hiddenPost.delete({
     where: {
       userId_postId: {
         userId: viewerUserId,
