@@ -6,6 +6,7 @@ import {
   followUser,
   getFollowersList,
   getMyFollowRequests,
+  getMyHiddenPosts,
   getMyLikedPosts,
   getMySavedPosts,
   getProfile,
@@ -70,6 +71,15 @@ router.get(
     query: profilePostsQuerySchema
   }),
   getMySavedPosts
+);
+
+router.get(
+  "/me/hidden-posts",
+  authMiddleware,
+  validateRequest({
+    query: profilePostsQuerySchema
+  }),
+  getMyHiddenPosts
 );
 
 router.delete("/me/saved-posts", authMiddleware, clearMySavedPosts);

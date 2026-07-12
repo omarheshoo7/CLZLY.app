@@ -109,7 +109,12 @@ type GetSavedPostsInput = {
   query: ProfilePostsQuery;
 };
 
-type SavedPostCursorAuthor = {
+type GetHiddenPostsInput = {
+  userId: string;
+  query: ProfilePostsQuery;
+};
+
+type VisiblePostCursorAuthor = {
   id: string;
   isPrivate: boolean;
   isDisabled: boolean;
@@ -176,11 +181,11 @@ function toPublicUserCard(user: SearchHistoryUser): PublicUserCard {
   return safeUser;
 }
 
-function canViewSavedPostCursorAuthor({
+function canViewRelationshipPostCursorAuthor({
   author,
   userId
 }: {
-  author: SavedPostCursorAuthor;
+  author: VisiblePostCursorAuthor;
   userId: string;
 }) {
   if (author.isDisabled || author.deletedAt) {
@@ -437,7 +442,7 @@ export async function getSavedPosts({ userId, query }: GetSavedPostsInput) {
     userId: string;
     createdAt: Date;
     post: {
-      author: SavedPostCursorAuthor;
+      author: VisiblePostCursorAuthor;
     };
   } | null = null;
 
@@ -478,7 +483,7 @@ export async function getSavedPosts({ userId, query }: GetSavedPostsInput) {
     if (
       !cursorSavedPost ||
       cursorSavedPost.userId !== userId ||
-      !canViewSavedPostCursorAuthor({
+      !canViewRelationshipPostCursorAuthor({
         author: cursorSavedPost.post.author,
         userId
       })
@@ -582,6 +587,166 @@ export async function getSavedPosts({ userId, query }: GetSavedPostsInput) {
         likedByMe: postWithMetadata.likedByMe,
         commentsCount: postWithMetadata.commentsCount,
         savedAt: savedPostRow.createdAt
+      };
+    }),
+    pagination: {
+      nextCursor,
+      hasMore
+    }
+  };
+}
+
+export async function getHiddenPosts({ userId, query }: GetHiddenPostsInput) {
+  let cursorHiddenPost: {
+    id: string;
+    userId: string;
+    createdAt: Date;
+    post: {
+      author: VisiblePostCursorAuthor;
+    };
+  } | null = null;
+
+  if (query.cursor) {
+    cursorHiddenPost = await prisma.hiddenPost.findUnique({
+      where: {
+        id: query.cursor
+      },
+      select: {
+        id: true,
+        userId: true,
+        createdAt: true,
+        post: {
+          select: {
+            author: {
+              select: {
+                id: true,
+                isPrivate: true,
+                isDisabled: true,
+                deletedAt: true,
+                followers: {
+                  where: {
+                    followerId: userId,
+                    status: "ACCEPTED"
+                  },
+                  select: {
+                    id: true
+                  },
+                  take: 1
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (
+      !cursorHiddenPost ||
+      cursorHiddenPost.userId !== userId ||
+      !canViewRelationshipPostCursorAuthor({
+        author: cursorHiddenPost.post.author,
+        userId
+      })
+    ) {
+      throw new AppError("Invalid cursor", 400);
+    }
+  }
+
+  const hiddenPostRows = await prisma.hiddenPost.findMany({
+    where: {
+      userId,
+      post: {
+        author: {
+          isDisabled: false,
+          deletedAt: null,
+          OR: [
+            {
+              id: userId
+            },
+            {
+              isPrivate: false
+            },
+            {
+              followers: {
+                some: {
+                  followerId: userId,
+                  status: "ACCEPTED"
+                }
+              }
+            }
+          ]
+        }
+      },
+      ...(cursorHiddenPost
+        ? {
+            OR: [
+              {
+                createdAt: {
+                  lt: cursorHiddenPost.createdAt
+                }
+              },
+              {
+                createdAt: cursorHiddenPost.createdAt,
+                id: {
+                  lt: cursorHiddenPost.id
+                }
+              }
+            ]
+          }
+        : {})
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: query.limit + 1,
+    select: {
+      id: true,
+      createdAt: true,
+      post: {
+        select: {
+          id: true,
+          authorId: true,
+          content: true,
+          createdAt: true,
+          updatedAt: true,
+          author: {
+            select: publicUserCardSelect
+          }
+        }
+      }
+    }
+  });
+
+  const hasMore = hiddenPostRows.length > query.limit;
+  const hiddenPostsPage = hasMore ? hiddenPostRows.slice(0, query.limit) : hiddenPostRows;
+  const nextCursor = hasMore && hiddenPostsPage.length > 0
+    ? hiddenPostsPage[hiddenPostsPage.length - 1].id
+    : null;
+  const basePosts = hiddenPostsPage.map((hiddenPostRow) => ({
+    id: hiddenPostRow.post.id,
+    authorId: hiddenPostRow.post.authorId,
+    content: hiddenPostRow.post.content,
+    createdAt: hiddenPostRow.post.createdAt,
+    updatedAt: hiddenPostRow.post.updatedAt
+  }));
+  const postsWithMetadata = await addPostMetadataToPosts({
+    posts: basePosts,
+    viewerUserId: userId
+  });
+
+  return {
+    posts: hiddenPostsPage.map((hiddenPostRow, index) => {
+      const postWithMetadata = postsWithMetadata[index];
+
+      return {
+        id: hiddenPostRow.post.id,
+        content: hiddenPostRow.post.content,
+        imageUrl: null,
+        createdAt: hiddenPostRow.post.createdAt,
+        updatedAt: hiddenPostRow.post.updatedAt,
+        author: hiddenPostRow.post.author,
+        likesCount: postWithMetadata.likesCount,
+        likedByMe: postWithMetadata.likedByMe,
+        commentsCount: postWithMetadata.commentsCount,
+        hiddenAt: hiddenPostRow.createdAt
       };
     }),
     pagination: {
