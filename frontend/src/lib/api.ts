@@ -34,6 +34,27 @@ export type User = {
   updatedAt: string;
 };
 
+export type FeedPost = {
+  id: string;
+  authorId: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  likesCount: number;
+  likedByMe: boolean;
+  commentsCount: number;
+};
+
+export type FeedPagination = {
+  nextCursor: string | null;
+  hasMore: boolean;
+};
+
+export type FeedData = {
+  posts: FeedPost[];
+  pagination: FeedPagination;
+};
+
 type AuthData = {
   user: User;
   accessToken: string;
@@ -136,5 +157,26 @@ export async function logoutApi() {
 export async function getCurrentUserApi(token: string) {
   return apiRequest<CurrentUserData>("/auth/me", {
     token
+  });
+}
+
+export async function getFeedApi(
+  accessToken: string,
+  params?: { cursor?: string; limit?: number }
+) {
+  const searchParams = new URLSearchParams();
+
+  if (params?.cursor) {
+    searchParams.set("cursor", params.cursor);
+  }
+
+  if (params?.limit !== undefined) {
+    searchParams.set("limit", String(params.limit));
+  }
+
+  const queryString = searchParams.toString();
+
+  return apiRequest<FeedData>(`/feed${queryString ? `?${queryString}` : ""}`, {
+    token: accessToken
   });
 }
