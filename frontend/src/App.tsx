@@ -1,23 +1,24 @@
 import { Navigate, Route, Routes } from "react-router-dom";
+import { AppLayout } from "./components/AppLayout";
+import { AppLoading } from "./components/AppLoading";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { PublicOnlyRoute } from "./auth/PublicOnlyRoute";
 import { useAuth } from "./auth/AuthContext";
+import { FeedPlaceholderPage } from "./pages/FeedPlaceholderPage";
+import { HiddenPostsPlaceholderPage } from "./pages/HiddenPostsPlaceholderPage";
 import { LoginPage } from "./pages/LoginPage";
-import { ProtectedHomePage } from "./pages/ProtectedHomePage";
+import { ProfilePlaceholderPage } from "./pages/ProfilePlaceholderPage";
 import { RegisterPage } from "./pages/RegisterPage";
+import { SavedPlaceholderPage } from "./pages/SavedPlaceholderPage";
 
 function RootRedirect() {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-100 px-4 text-sm text-gray-600">
-        Loading...
-      </div>
-    );
+    return <AppLoading />;
   }
 
-  return <Navigate to={isAuthenticated ? "/app" : "/login"} replace />;
+  return <Navigate to={isAuthenticated ? "/app/feed" : "/login"} replace />;
 }
 
 export default function App() {
@@ -44,10 +45,16 @@ export default function App() {
         path="/app"
         element={(
           <ProtectedRoute>
-            <ProtectedHomePage />
+            <AppLayout />
           </ProtectedRoute>
         )}
-      />
+      >
+        <Route index element={<Navigate to="/app/feed" replace />} />
+        <Route path="feed" element={<FeedPlaceholderPage />} />
+        <Route path="profile" element={<ProfilePlaceholderPage />} />
+        <Route path="saved" element={<SavedPlaceholderPage />} />
+        <Route path="hidden-posts" element={<HiddenPostsPlaceholderPage />} />
+      </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

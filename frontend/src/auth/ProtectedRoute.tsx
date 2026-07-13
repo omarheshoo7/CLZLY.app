@@ -1,4 +1,5 @@
 import { Navigate } from "react-router-dom";
+import { AppLoading } from "../components/AppLoading";
 import { useAuth } from "./AuthContext";
 
 type ProtectedRouteProps = {
@@ -9,11 +10,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-100 px-4 text-sm text-gray-600">
-        Loading...
-      </div>
-    );
+    return <AppLoading />;
   }
 
   if (!isAuthenticated) {
