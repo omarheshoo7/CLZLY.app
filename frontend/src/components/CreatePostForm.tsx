@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { ApiError, createPostApi } from "../lib/api";
 
 const MAX_POST_LENGTH = 2000;
@@ -16,10 +16,25 @@ export function CreatePostForm({ accessToken, onPostCreated }: CreatePostFormPro
   const [content, setContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const trimmedContent = content.trim();
   const isOverLimit = content.length > MAX_POST_LENGTH;
   const isSubmitDisabled = isSubmitting || trimmedContent.length === 0 || isOverLimit;
+
+  useEffect(() => {
+    if (!successMessage) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setSuccessMessage(null);
+    }, 3000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [successMessage]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -36,6 +51,7 @@ export function CreatePostForm({ accessToken, onPostCreated }: CreatePostFormPro
 
     setIsSubmitting(true);
     setErrorMessage(null);
+    setSuccessMessage(null);
 
     try {
       await createPostApi(accessToken, {
@@ -47,6 +63,7 @@ export function CreatePostForm({ accessToken, onPostCreated }: CreatePostFormPro
 
       try {
         await onPostCreated();
+        setSuccessMessage("Posted successfully.");
       } catch {
         setErrorMessage("Post created, but the feed could not refresh.");
       }
@@ -98,12 +115,20 @@ export function CreatePostForm({ accessToken, onPostCreated }: CreatePostFormPro
           type="submit"
           disabled={isSubmitDisabled}
         >
-          {isSubmitting ? "Posting..." : "Post"}
+          {isSubmitting ? "Posting post..." : "Post"}
         </button>
       </div>
 
       {errorMessage ? (
         <p className="mt-3 text-sm text-red-700">{errorMessage}</p>
+      ) : null}
+      {successMessage ? (
+        <div
+          className="fixed right-4 top-4 z-50 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800 shadow-lg"
+          role="status"
+        >
+          {successMessage}
+        </div>
       ) : null}
     </form>
   );
