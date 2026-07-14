@@ -28,6 +28,10 @@ export function PostCard({
   onToggleLike
 }: PostCardProps) {
   const wasUpdated = post.updatedAt !== post.createdAt;
+  const heartSymbol = post.likedByMe ? "♥" : "♡";
+  const heartClassName = post.likedByMe
+    ? "scale-110 text-red-500"
+    : "text-gray-400 group-hover:text-red-400";
 
   return (
     <article className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
@@ -43,25 +47,32 @@ export function PostCard({
 
       <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-gray-950">{post.content}</p>
 
-      <div className="mt-5 flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-          <span>{post.likesCount} likes</span>
+      <div className="mt-5 border-t border-gray-100 pt-4">
+        <div className="flex flex-wrap items-center gap-5 text-sm text-gray-600">
+          <button
+            aria-label={post.likedByMe ? "Unlike post" : "Like post"}
+            className="group inline-flex items-center gap-2 rounded-full px-2 py-1 font-medium text-gray-700 transition hover:text-gray-950 disabled:cursor-not-allowed disabled:opacity-60"
+            type="button"
+            disabled={isLikePending}
+            onClick={() => void onToggleLike(post)}
+          >
+            <span
+              className={`text-2xl leading-none transition duration-150 ${heartClassName} ${
+                isLikePending ? "scale-95" : ""
+              }`}
+              aria-hidden="true"
+            >
+              {heartSymbol}
+            </span>
+            <span>{post.likesCount}</span>
+          </button>
           <span>{post.commentsCount} comments</span>
         </div>
 
-        <button
-          className="w-full rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-800 transition hover:border-gray-950 hover:text-gray-950 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400 sm:w-auto"
-          type="button"
-          disabled={isLikePending}
-          onClick={() => void onToggleLike(post)}
-        >
-          {isLikePending ? "Updating..." : post.likedByMe ? "Unlike" : "Like"}
-        </button>
+        {likeErrorMessage ? (
+          <p className="mt-3 text-sm text-red-700">{likeErrorMessage}</p>
+        ) : null}
       </div>
-
-      {likeErrorMessage ? (
-        <p className="mt-3 text-sm text-red-700">{likeErrorMessage}</p>
-      ) : null}
     </article>
   );
 }
