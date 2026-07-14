@@ -5,6 +5,8 @@ import { PostCard } from "../components/PostCard";
 import {
   ApiError,
   getFeedApi,
+  likePostApi,
+  unlikePostApi,
   type FeedPagination,
   type FeedPost
 } from "../lib/api";
@@ -26,6 +28,8 @@ export function FeedPlaceholderPage() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loadMoreErrorMessage, setLoadMoreErrorMessage] = useState<string | null>(null);
+  const [pendingLikePostId, setPendingLikePostId] = useState<string | null>(null);
+  const [likeErrorByPostId, setLikeErrorByPostId] = useState<Record<string, string | undefined>>({});
 
   const loadInitialFeed = useCallback(async (isCurrentRequest: () => boolean = () => true) => {
     if (!accessToken) {
@@ -112,6 +116,59 @@ export function FeedPlaceholderPage() {
     await refreshFirstFeedPage();
   }
 
+  function clearLikeError(postId: string) {
+    setLikeErrorByPostId((currentErrors) => ({
+      ...currentErrors,
+      [postId]: undefined
+    }));
+  }
+
+  async function handleToggleLike(post: FeedPost) {
+    if (!accessToken || pendingLikePostId) {
+      return;
+    }
+
+    setPendingLikePostId(post.id);
+    clearLikeError(post.id);
+
+    try {
+      if (post.likedByMe) {
+        await unlikePostApi(accessToken, post.id);
+        setPosts((currentPosts) =>
+          currentPosts.map((currentPost) =>
+            currentPost.id === post.id
+              ? {
+                  ...currentPost,
+                  likedByMe: false,
+                  likesCount: Math.max(0, currentPost.likesCount - 1)
+                }
+              : currentPost
+          )
+        );
+      } else {
+        await likePostApi(accessToken, post.id);
+        setPosts((currentPosts) =>
+          currentPosts.map((currentPost) =>
+            currentPost.id === post.id
+              ? {
+                  ...currentPost,
+                  likedByMe: true,
+                  likesCount: currentPost.likesCount + 1
+                }
+              : currentPost
+          )
+        );
+      }
+    } catch {
+      setLikeErrorByPostId((currentErrors) => ({
+        ...currentErrors,
+        [post.id]: "Could not update like."
+      }));
+    } finally {
+      setPendingLikePostId(null);
+    }
+  }
+
   const hasPosts = posts.length > 0;
 
   return (
@@ -162,7 +219,13 @@ export function FeedPlaceholderPage() {
       {!isLoadingInitial && !errorMessage && hasPosts ? (
         <div className="space-y-4">
           {posts.map((post) => (
-            <PostCard key={post.id} post={post} />
+            <PostCard
+              key={post.id}
+              post={post}
+              isLikePending={pendingLikePostId === post.id}
+              likeErrorMessage={likeErrorByPostId[post.id] ?? null}
+              onToggleLike={handleToggleLike}
+            />
           ))}
         </div>
       ) : null}

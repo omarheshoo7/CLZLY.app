@@ -67,6 +67,8 @@ export type CreatePostData = {
   post: CreatedPost;
 };
 
+export type PostActionData = Record<string, never>;
+
 type AuthData = {
   user: User;
   accessToken: string;
@@ -201,5 +203,19 @@ export async function createPostApi(
     method: "POST",
     token: accessToken,
     body: payload
+  });
+}
+
+export async function likePostApi(accessToken: string, postId: string) {
+  return apiRequest<PostActionData>(`/posts/${postId}/like`, {
+    method: "POST",
+    token: accessToken
+  });
+}
+
+export async function unlikePostApi(accessToken: string, postId: string) {
+  return apiRequest<PostActionData>(`/posts/${postId}/like`, {
+    method: "DELETE",
+    token: accessToken
   });
 }
