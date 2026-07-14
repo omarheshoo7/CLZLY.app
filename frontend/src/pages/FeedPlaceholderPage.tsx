@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
+import { CreatePostForm } from "../components/CreatePostForm";
 import { PostCard } from "../components/PostCard";
 import {
   ApiError,
@@ -62,6 +63,19 @@ export function FeedPlaceholderPage() {
     }
   }, [accessToken]);
 
+  const refreshFirstFeedPage = useCallback(async () => {
+    if (!accessToken) {
+      return;
+    }
+
+    const response = await getFeedApi(accessToken);
+
+    setPosts(response.data.posts);
+    setPagination(response.data.pagination);
+    setLoadMoreErrorMessage(null);
+    setErrorMessage(null);
+  }, [accessToken]);
+
   useEffect(() => {
     let isCurrentRequest = true;
 
@@ -94,6 +108,10 @@ export function FeedPlaceholderPage() {
     }
   }
 
+  async function handlePostCreated() {
+    await refreshFirstFeedPage();
+  }
+
   const hasPosts = posts.length > 0;
 
   return (
@@ -104,6 +122,13 @@ export function FeedPlaceholderPage() {
           Posts from you and people you follow will appear here.
         </p>
       </div>
+
+      {accessToken ? (
+        <CreatePostForm
+          accessToken={accessToken}
+          onPostCreated={handlePostCreated}
+        />
+      ) : null}
 
       {isLoadingInitial ? (
         <div className="rounded-lg border border-gray-200 bg-white p-6 text-sm text-gray-600 shadow-sm">

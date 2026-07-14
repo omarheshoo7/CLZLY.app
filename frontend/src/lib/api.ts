@@ -55,6 +55,18 @@ export type FeedData = {
   pagination: FeedPagination;
 };
 
+export type CreatedPost = {
+  id: string;
+  authorId: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreatePostData = {
+  post: CreatedPost;
+};
+
 type AuthData = {
   user: User;
   accessToken: string;
@@ -178,5 +190,16 @@ export async function getFeedApi(
 
   return apiRequest<FeedData>(`/feed${queryString ? `?${queryString}` : ""}`, {
     token: accessToken
+  });
+}
+
+export async function createPostApi(
+  accessToken: string,
+  payload: { content: string }
+) {
+  return apiRequest<CreatePostData>("/posts", {
+    method: "POST",
+    token: accessToken,
+    body: payload
   });
 }
