@@ -22,8 +22,12 @@ type PostCardProps = {
   commentsErrorMessage?: string | null;
   loadMoreCommentsErrorMessage?: string | null;
   hasMoreComments: boolean;
+  currentUserId: string | null;
+  pendingDeleteCommentId: string | null;
+  deleteCommentErrorByCommentId: Record<string, string | undefined>;
   onToggleComments: (postId: string) => void;
   onLoadMoreComments: (postId: string) => void;
+  onDeleteComment: (postId: string, comment: PostComment) => void;
 };
 
 function formatDate(value: string) {
@@ -60,8 +64,12 @@ export function PostCard({
   commentsErrorMessage,
   loadMoreCommentsErrorMessage,
   hasMoreComments,
+  currentUserId,
+  pendingDeleteCommentId,
+  deleteCommentErrorByCommentId,
   onToggleComments,
-  onLoadMoreComments
+  onLoadMoreComments,
+  onDeleteComment
 }: PostCardProps) {
   const wasUpdated = post.updatedAt !== post.createdAt;
   const heartSymbol = post.likedByMe ? "♥" : "♡";
@@ -132,8 +140,12 @@ export function PostCard({
         commentsErrorMessage={commentsErrorMessage}
         loadMoreErrorMessage={loadMoreCommentsErrorMessage}
         hasMore={hasMoreComments}
+        currentUserId={currentUserId}
+        pendingDeleteCommentId={pendingDeleteCommentId}
+        deleteCommentErrorByCommentId={deleteCommentErrorByCommentId}
         onToggleComments={onToggleComments}
         onLoadMoreComments={onLoadMoreComments}
+        onDeleteComment={onDeleteComment}
       />
     </article>
   );

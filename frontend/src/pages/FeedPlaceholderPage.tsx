@@ -5,6 +5,7 @@ import { PostCard } from "../components/PostCard";
 import {
   ApiError,
   createCommentApi,
+  deleteCommentApi,
   getFeedApi,
   getPostCommentsApi,
   likePostApi,
@@ -28,7 +29,7 @@ function getRequestErrorMessage(error: unknown) {
 }
 
 export function FeedPlaceholderPage() {
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [pagination, setPagination] = useState<FeedPagination>(emptyPagination);
   const [isLoadingInitial, setIsLoadingInitial] = useState(true);
@@ -50,6 +51,8 @@ export function FeedPlaceholderPage() {
   const [loadMoreCommentsLoadingByPostId, setLoadMoreCommentsLoadingByPostId] = useState<Record<string, boolean | undefined>>({});
   const [commentsErrorByPostId, setCommentsErrorByPostId] = useState<Record<string, string | undefined>>({});
   const [loadMoreCommentsErrorByPostId, setLoadMoreCommentsErrorByPostId] = useState<Record<string, string | undefined>>({});
+  const [pendingDeleteCommentId, setPendingDeleteCommentId] = useState<string | null>(null);
+  const [deleteCommentErrorByCommentId, setDeleteCommentErrorByCommentId] = useState<Record<string, string | undefined>>({});
 
   const loadInitialFeed = useCallback(async (isCurrentRequest: () => boolean = () => true) => {
     if (!accessToken) {
@@ -456,6 +459,93 @@ export function FeedPlaceholderPage() {
     }
   }
 
+  async function handleDeleteComment(postId: string, comment: PostComment) {
+    if (!accessToken || pendingDeleteCommentId) {
+      return;
+    }
+
+    setPendingDeleteCommentId(comment.id);
+    setDeleteCommentErrorByCommentId((currentErrors) => ({
+      ...currentErrors,
+      [comment.id]: undefined
+    }));
+
+    try {
+      await deleteCommentApi(accessToken, postId, comment.id);
+
+      const currentLoadedComments = commentsByPostId[postId] ?? [];
+      const remainingLoadedComments = currentLoadedComments.filter(
+        (currentComment) => currentComment.id !== comment.id
+      );
+
+      setCommentsByPostId((currentComments) => ({
+        ...currentComments,
+        [postId]: remainingLoadedComments
+      }));
+
+      setCommentsPaginationByPostId((currentPagination) => {
+        const postPagination = currentPagination[postId];
+
+        if (!postPagination || postPagination.nextCursor !== comment.id) {
+          return currentPagination;
+        }
+
+        const nextCursor = remainingLoadedComments.at(-1)?.id ?? null;
+
+        return {
+          ...currentPagination,
+          [postId]: {
+            ...postPagination,
+            nextCursor,
+            hasMore: nextCursor ? postPagination.hasMore : false
+          }
+        };
+      });
+
+      setPosts((currentPosts) =>
+        currentPosts.map((currentPost) =>
+          currentPost.id === postId
+            ? {
+                ...currentPost,
+                commentsCount: Math.max(0, currentPost.commentsCount - 1)
+              }
+            : currentPost
+        )
+      );
+
+      setDeleteCommentErrorByCommentId((currentErrors) => ({
+        ...currentErrors,
+        [comment.id]: undefined
+      }));
+
+      if (latestCommentByPostId[postId]?.id === comment.id) {
+        try {
+          const response = await getPostCommentsApi(accessToken, postId, {
+            limit: LATEST_COMMENT_PREVIEW_LIMIT,
+            sort: "latest"
+          });
+
+          setLatestCommentByPostId((currentLatestComments) => ({
+            ...currentLatestComments,
+            [postId]: response.data.comments[0] ?? null
+          }));
+        } catch {
+          setLatestCommentByPostId((currentLatestComments) => ({
+            ...currentLatestComments,
+            [postId]: null
+          }));
+        }
+      }
+    } catch {
+      setDeleteCommentErrorByCommentId((currentErrors) => ({
+        ...currentErrors,
+        [comment.id]: "Could not delete comment."
+      }));
+    } finally {
+      setPendingDeleteCommentId(null);
+    }
+  }
+
   const hasPosts = posts.length > 0;
 
   return (
@@ -527,8 +617,12 @@ export function FeedPlaceholderPage() {
               commentsErrorMessage={commentsErrorByPostId[post.id] ?? null}
               loadMoreCommentsErrorMessage={loadMoreCommentsErrorByPostId[post.id] ?? null}
               hasMoreComments={commentsPaginationByPostId[post.id]?.hasMore ?? false}
+              currentUserId={user?.id ?? null}
+              pendingDeleteCommentId={pendingDeleteCommentId}
+              deleteCommentErrorByCommentId={deleteCommentErrorByCommentId}
               onToggleComments={handleToggleComments}
               onLoadMoreComments={handleLoadMoreComments}
+              onDeleteComment={handleDeleteComment}
             />
           ))}
         </div>

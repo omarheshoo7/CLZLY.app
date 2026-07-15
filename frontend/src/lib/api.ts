@@ -106,6 +106,8 @@ export type CreateCommentData = {
   comment: PostComment;
 };
 
+export type DeleteCommentData = Record<string, never>;
+
 type AuthData = {
   user: User;
   accessToken: string;
@@ -296,4 +298,15 @@ export async function getPostCommentsApi(
       token: accessToken
     }
   );
+}
+
+export async function deleteCommentApi(
+  accessToken: string,
+  postId: string,
+  commentId: string
+) {
+  return apiRequest<DeleteCommentData>(`/posts/${postId}/comments/${commentId}`, {
+    method: "DELETE",
+    token: accessToken
+  });
 }

@@ -12,8 +12,12 @@ type CommentListProps = {
   commentsErrorMessage?: string | null;
   loadMoreErrorMessage?: string | null;
   hasMore: boolean;
+  currentUserId: string | null;
+  pendingDeleteCommentId: string | null;
+  deleteCommentErrorByCommentId: Record<string, string | undefined>;
   onToggleComments: (postId: string) => void;
   onLoadMoreComments: (postId: string) => void;
+  onDeleteComment: (postId: string, comment: PostComment) => void;
 };
 
 function formatDate(value: string) {
@@ -34,18 +38,62 @@ function getCommentAuthorLabel(comment: PostComment) {
   return comment.author?.username ?? `User ${shortenId(comment.authorId)}`;
 }
 
-function CommentItem({ comment }: { comment: PostComment }) {
+function isOwnComment(comment: PostComment, currentUserId: string | null) {
+  if (!currentUserId) {
+    return false;
+  }
+
+  return comment.author?.id === currentUserId || comment.authorId === currentUserId;
+}
+
+type CommentItemProps = {
+  postId: string;
+  comment: PostComment;
+  currentUserId: string | null;
+  pendingDeleteCommentId: string | null;
+  deleteErrorMessage?: string | null;
+  onDeleteComment: (postId: string, comment: PostComment) => void;
+  showDeleteControl?: boolean;
+};
+
+function CommentItem({
+  postId,
+  comment,
+  currentUserId,
+  pendingDeleteCommentId,
+  deleteErrorMessage,
+  onDeleteComment,
+  showDeleteControl = false
+}: CommentItemProps) {
+  const canDelete = showDeleteControl && isOwnComment(comment, currentUserId);
+  const isDeleting = pendingDeleteCommentId === comment.id;
+
   return (
     <li className="rounded-md bg-gray-50 px-3 py-2">
-      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <span className="text-sm font-semibold text-gray-950">
-          {getCommentAuthorLabel(comment)}
-        </span>
-        <span className="text-xs text-gray-500">{formatDate(comment.createdAt)}</span>
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <span className="text-sm font-semibold text-gray-950">
+            {getCommentAuthorLabel(comment)}
+          </span>
+          <span className="text-xs text-gray-500">{formatDate(comment.createdAt)}</span>
+        </div>
+        {canDelete ? (
+          <button
+            className="text-xs font-semibold text-red-600 transition hover:text-red-800 disabled:cursor-not-allowed disabled:text-red-300"
+            type="button"
+            onClick={() => onDeleteComment(postId, comment)}
+            disabled={isDeleting}
+          >
+            {isDeleting ? "Deleting..." : "Delete"}
+          </button>
+        ) : null}
       </div>
       <p className="mt-1 whitespace-pre-wrap text-sm leading-5 text-gray-800">
         {comment.content}
       </p>
+      {deleteErrorMessage ? (
+        <p className="mt-2 text-sm text-red-700">{deleteErrorMessage}</p>
+      ) : null}
     </li>
   );
 }
@@ -62,8 +110,12 @@ export function CommentList({
   commentsErrorMessage,
   loadMoreErrorMessage,
   hasMore,
+  currentUserId,
+  pendingDeleteCommentId,
+  deleteCommentErrorByCommentId,
   onToggleComments,
-  onLoadMoreComments
+  onLoadMoreComments,
+  onDeleteComment
 }: CommentListProps) {
   const shouldShowToggle = commentsCount > 0 || isExpanded;
   const toggleLabel = isExpanded ? "Hide comments" : "View comments";
@@ -78,7 +130,14 @@ export function CommentList({
 
           {!isPreviewLoading && latestComment ? (
             <ul className="space-y-2">
-              <CommentItem comment={latestComment} />
+              <CommentItem
+                postId={postId}
+                comment={latestComment}
+                currentUserId={currentUserId}
+                pendingDeleteCommentId={pendingDeleteCommentId}
+                deleteErrorMessage={null}
+                onDeleteComment={onDeleteComment}
+              />
             </ul>
           ) : null}
         </div>
@@ -112,7 +171,16 @@ export function CommentList({
           {!isCommentsLoading && comments.length > 0 ? (
             <ul className="space-y-2">
               {comments.map((comment) => (
-                <CommentItem key={comment.id} comment={comment} />
+                <CommentItem
+                  key={comment.id}
+                  postId={postId}
+                  comment={comment}
+                  currentUserId={currentUserId}
+                  pendingDeleteCommentId={pendingDeleteCommentId}
+                  deleteErrorMessage={deleteCommentErrorByCommentId[comment.id] ?? null}
+                  onDeleteComment={onDeleteComment}
+                  showDeleteControl
+                />
               ))}
             </ul>
           ) : null}
