@@ -6,11 +6,17 @@ import {
   ApiError,
   createCommentApi,
   getFeedApi,
+  getPostCommentsApi,
   likePostApi,
   unlikePostApi,
   type FeedPagination,
-  type FeedPost
+  type FeedPost,
+  type PostComment,
+  type PostCommentsPagination
 } from "../lib/api";
+
+const COMMENTS_PAGE_SIZE = 20;
+const LATEST_COMMENT_PREVIEW_LIMIT = 1;
 
 const emptyPagination: FeedPagination = {
   nextCursor: null,
@@ -35,6 +41,15 @@ export function FeedPlaceholderPage() {
   const [pendingCommentPostId, setPendingCommentPostId] = useState<string | null>(null);
   const [commentErrorByPostId, setCommentErrorByPostId] = useState<Record<string, string | undefined>>({});
   const [commentSuccessByPostId, setCommentSuccessByPostId] = useState<Record<string, string | undefined>>({});
+  const [latestCommentByPostId, setLatestCommentByPostId] = useState<Record<string, PostComment | null | undefined>>({});
+  const [latestCommentLoadingByPostId, setLatestCommentLoadingByPostId] = useState<Record<string, boolean | undefined>>({});
+  const [expandedCommentsPostIds, setExpandedCommentsPostIds] = useState<Record<string, boolean | undefined>>({});
+  const [commentsByPostId, setCommentsByPostId] = useState<Record<string, PostComment[] | undefined>>({});
+  const [commentsPaginationByPostId, setCommentsPaginationByPostId] = useState<Record<string, PostCommentsPagination | undefined>>({});
+  const [commentsLoadingByPostId, setCommentsLoadingByPostId] = useState<Record<string, boolean | undefined>>({});
+  const [loadMoreCommentsLoadingByPostId, setLoadMoreCommentsLoadingByPostId] = useState<Record<string, boolean | undefined>>({});
+  const [commentsErrorByPostId, setCommentsErrorByPostId] = useState<Record<string, string | undefined>>({});
+  const [loadMoreCommentsErrorByPostId, setLoadMoreCommentsErrorByPostId] = useState<Record<string, string | undefined>>({});
 
   const loadInitialFeed = useCallback(async (isCurrentRequest: () => boolean = () => true) => {
     if (!accessToken) {
@@ -94,6 +109,68 @@ export function FeedPlaceholderPage() {
       isCurrentRequest = false;
     };
   }, [loadInitialFeed]);
+
+  useEffect(() => {
+    if (!accessToken || posts.length === 0) {
+      return;
+    }
+
+    let isCurrentRequest = true;
+
+    for (const post of posts) {
+      if (
+        post.commentsCount === 0 ||
+        latestCommentByPostId[post.id] !== undefined ||
+        latestCommentLoadingByPostId[post.id]
+      ) {
+        continue;
+      }
+
+      setLatestCommentLoadingByPostId((currentLoading) => ({
+        ...currentLoading,
+        [post.id]: true
+      }));
+
+      void getPostCommentsApi(accessToken, post.id, {
+        limit: LATEST_COMMENT_PREVIEW_LIMIT,
+        sort: "latest"
+      })
+        .then((response) => {
+          if (!isCurrentRequest) {
+            return;
+          }
+
+          setLatestCommentByPostId((currentComments) => ({
+            ...currentComments,
+            [post.id]: response.data.comments[0] ?? null
+          }));
+        })
+        .catch(() => {
+          if (!isCurrentRequest) {
+            return;
+          }
+
+          setLatestCommentByPostId((currentComments) => ({
+            ...currentComments,
+            [post.id]: null
+          }));
+        })
+        .finally(() => {
+          if (!isCurrentRequest) {
+            return;
+          }
+
+          setLatestCommentLoadingByPostId((currentLoading) => ({
+            ...currentLoading,
+            [post.id]: false
+          }));
+        });
+    }
+
+    return () => {
+      isCurrentRequest = false;
+    };
+  }, [accessToken, posts]);
 
   async function handleLoadMore() {
     if (!accessToken || !pagination.nextCursor || isLoadingMore) {
@@ -226,9 +303,10 @@ export function FeedPlaceholderPage() {
     }));
 
     try {
-      await createCommentApi(accessToken, postId, {
+      const response = await createCommentApi(accessToken, postId, {
         content: trimmedContent
       });
+      const createdComment = response.data.comment;
 
       setCommentDraftByPostId((currentDrafts) => ({
         ...currentDrafts,
@@ -246,6 +324,18 @@ export function FeedPlaceholderPage() {
         )
       );
 
+      setLatestCommentByPostId((currentComments) => ({
+        ...currentComments,
+        [postId]: createdComment
+      }));
+
+      if (expandedCommentsPostIds[postId]) {
+        setCommentsByPostId((currentComments) => ({
+          ...currentComments,
+          [postId]: [...(currentComments[postId] ?? []), createdComment]
+        }));
+      }
+
       setCommentSuccessByPostId((currentSuccesses) => ({
         ...currentSuccesses,
         [postId]: "Comment posted."
@@ -257,6 +347,112 @@ export function FeedPlaceholderPage() {
       }));
     } finally {
       setPendingCommentPostId(null);
+    }
+  }
+
+  async function handleToggleComments(postId: string) {
+    if (!accessToken || commentsLoadingByPostId[postId]) {
+      return;
+    }
+
+    if (expandedCommentsPostIds[postId]) {
+      setExpandedCommentsPostIds((currentExpanded) => ({
+        ...currentExpanded,
+        [postId]: false
+      }));
+      return;
+    }
+
+    setExpandedCommentsPostIds((currentExpanded) => ({
+      ...currentExpanded,
+      [postId]: true
+    }));
+
+    if (commentsByPostId[postId]) {
+      return;
+    }
+
+    setCommentsLoadingByPostId((currentLoading) => ({
+      ...currentLoading,
+      [postId]: true
+    }));
+    setCommentsErrorByPostId((currentErrors) => ({
+      ...currentErrors,
+      [postId]: undefined
+    }));
+
+    try {
+      const response = await getPostCommentsApi(accessToken, postId, {
+        limit: COMMENTS_PAGE_SIZE,
+        sort: "oldest"
+      });
+
+      setCommentsByPostId((currentComments) => ({
+        ...currentComments,
+        [postId]: response.data.comments
+      }));
+      setCommentsPaginationByPostId((currentPagination) => ({
+        ...currentPagination,
+        [postId]: response.data.pagination
+      }));
+    } catch {
+      setCommentsErrorByPostId((currentErrors) => ({
+        ...currentErrors,
+        [postId]: "Could not load comments."
+      }));
+    } finally {
+      setCommentsLoadingByPostId((currentLoading) => ({
+        ...currentLoading,
+        [postId]: false
+      }));
+    }
+  }
+
+  async function handleLoadMoreComments(postId: string) {
+    if (!accessToken || loadMoreCommentsLoadingByPostId[postId]) {
+      return;
+    }
+
+    const nextCursor = commentsPaginationByPostId[postId]?.nextCursor;
+
+    if (!nextCursor) {
+      return;
+    }
+
+    setLoadMoreCommentsLoadingByPostId((currentLoading) => ({
+      ...currentLoading,
+      [postId]: true
+    }));
+    setLoadMoreCommentsErrorByPostId((currentErrors) => ({
+      ...currentErrors,
+      [postId]: undefined
+    }));
+
+    try {
+      const response = await getPostCommentsApi(accessToken, postId, {
+        limit: COMMENTS_PAGE_SIZE,
+        cursor: nextCursor,
+        sort: "oldest"
+      });
+
+      setCommentsByPostId((currentComments) => ({
+        ...currentComments,
+        [postId]: [...(currentComments[postId] ?? []), ...response.data.comments]
+      }));
+      setCommentsPaginationByPostId((currentPagination) => ({
+        ...currentPagination,
+        [postId]: response.data.pagination
+      }));
+    } catch {
+      setLoadMoreCommentsErrorByPostId((currentErrors) => ({
+        ...currentErrors,
+        [postId]: "Could not load more comments."
+      }));
+    } finally {
+      setLoadMoreCommentsLoadingByPostId((currentLoading) => ({
+        ...currentLoading,
+        [postId]: false
+      }));
     }
   }
 
@@ -322,6 +518,17 @@ export function FeedPlaceholderPage() {
               commentSuccessMessage={commentSuccessByPostId[post.id] ?? null}
               onCommentDraftChange={handleCommentDraftChange}
               onSubmitComment={handleSubmitComment}
+              latestComment={latestCommentByPostId[post.id] ?? null}
+              comments={commentsByPostId[post.id] ?? []}
+              areCommentsExpanded={expandedCommentsPostIds[post.id] ?? false}
+              isLatestCommentLoading={latestCommentLoadingByPostId[post.id] ?? false}
+              isCommentsLoading={commentsLoadingByPostId[post.id] ?? false}
+              isLoadingMoreComments={loadMoreCommentsLoadingByPostId[post.id] ?? false}
+              commentsErrorMessage={commentsErrorByPostId[post.id] ?? null}
+              loadMoreCommentsErrorMessage={loadMoreCommentsErrorByPostId[post.id] ?? null}
+              hasMoreComments={commentsPaginationByPostId[post.id]?.hasMore ?? false}
+              onToggleComments={handleToggleComments}
+              onLoadMoreComments={handleLoadMoreComments}
             />
           ))}
         </div>

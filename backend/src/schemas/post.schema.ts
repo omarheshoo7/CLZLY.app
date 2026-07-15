@@ -76,7 +76,8 @@ export const listPostCommentsQuerySchema = z
     cursor: z.preprocess(
       (value) => (typeof value === "string" ? value.trim() : value),
       z.string().min(1, "Cursor is required").optional()
-    )
+    ),
+    sort: z.enum(["oldest", "latest"]).default("oldest")
   })
   .strict();
 

@@ -9,7 +9,15 @@ const commentSelect = {
   authorId: true,
   content: true,
   createdAt: true,
-  updatedAt: true
+  updatedAt: true,
+  author: {
+    select: {
+      id: true,
+      username: true,
+      displayName: true,
+      profilePictureUrl: true
+    }
+  }
 } as const;
 
 type CreateCommentServiceInput = {
@@ -47,14 +55,33 @@ export async function createComment({ postId, authorId, data }: CreateCommentSer
 }
 
 export async function listPostComments({ postId, viewerUserId, query }: ListPostCommentsServiceInput) {
-  const { limit, cursor } = query;
+  const { limit, cursor, sort } = query;
 
   const visiblePost = await assertPostVisibleForViewer({
     postId,
     viewerUserId
   });
 
-  const cursorFilter = cursor ? await getCommentCursorFilter({ cursor, postId: visiblePost.id }) : {};
+  const cursorFilter = cursor
+    ? await getCommentCursorFilter({ cursor, postId: visiblePost.id, sort })
+    : {};
+  const orderBy = sort === "latest"
+    ? [
+        {
+          createdAt: "desc" as const
+        },
+        {
+          id: "desc" as const
+        }
+      ]
+    : [
+        {
+          createdAt: "asc" as const
+        },
+        {
+          id: "asc" as const
+        }
+      ];
 
   const comments = await prisma.comment.findMany({
     where: {
@@ -65,14 +92,7 @@ export async function listPostComments({ postId, viewerUserId, query }: ListPost
       },
       ...cursorFilter
     },
-    orderBy: [
-      {
-        createdAt: "asc"
-      },
-      {
-        id: "asc"
-      }
-    ],
+    orderBy,
     take: limit + 1,
     select: commentSelect
   });
@@ -121,7 +141,15 @@ export async function deleteComment({ postId, commentId, viewerUserId }: DeleteC
   });
 }
 
-async function getCommentCursorFilter({ cursor, postId }: { cursor: string; postId: string }) {
+async function getCommentCursorFilter({
+  cursor,
+  postId,
+  sort
+}: {
+  cursor: string;
+  postId: string;
+  sort: ListPostCommentsQuery["sort"];
+}) {
   const cursorComment = await prisma.comment.findUnique({
     where: {
       id: cursor
@@ -146,6 +174,24 @@ async function getCommentCursorFilter({ cursor, postId }: { cursor: string; post
     cursorComment.author.deletedAt
   ) {
     throw new AppError("Invalid cursor", 400);
+  }
+
+  if (sort === "latest") {
+    return {
+      OR: [
+        {
+          createdAt: {
+            lt: cursorComment.createdAt
+          }
+        },
+        {
+          createdAt: cursorComment.createdAt,
+          id: {
+            lt: cursorComment.id
+          }
+        }
+      ]
+    };
   }
 
   return {

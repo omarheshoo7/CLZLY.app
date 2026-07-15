@@ -69,17 +69,41 @@ export type CreatePostData = {
 
 export type PostActionData = Record<string, never>;
 
-export type CreatedComment = {
+export type CommentAuthor = {
+  id: string;
+  username: string;
+  displayName: string | null;
+  profilePictureUrl: string | null;
+};
+
+export type PostComment = {
   id: string;
   postId: string;
   authorId: string;
+  author: CommentAuthor;
   content: string;
   createdAt: string;
   updatedAt: string;
 };
 
+export type PostCommentsPagination = {
+  nextCursor: string | null;
+  hasMore: boolean;
+};
+
+export type PostCommentsData = {
+  comments: PostComment[];
+  pagination: PostCommentsPagination;
+};
+
+export type ListPostCommentsOptions = {
+  limit?: number;
+  cursor?: string;
+  sort?: "oldest" | "latest";
+};
+
 export type CreateCommentData = {
-  comment: CreatedComment;
+  comment: PostComment;
 };
 
 type AuthData = {
@@ -243,4 +267,33 @@ export async function createCommentApi(
     token: accessToken,
     body: payload
   });
+}
+
+export async function getPostCommentsApi(
+  accessToken: string,
+  postId: string,
+  options?: ListPostCommentsOptions
+) {
+  const searchParams = new URLSearchParams();
+
+  if (options?.limit !== undefined) {
+    searchParams.set("limit", String(options.limit));
+  }
+
+  if (options?.cursor) {
+    searchParams.set("cursor", options.cursor);
+  }
+
+  if (options?.sort) {
+    searchParams.set("sort", options.sort);
+  }
+
+  const queryString = searchParams.toString();
+
+  return apiRequest<PostCommentsData>(
+    `/posts/${postId}/comments${queryString ? `?${queryString}` : ""}`,
+    {
+      token: accessToken
+    }
+  );
 }

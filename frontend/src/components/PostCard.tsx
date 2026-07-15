@@ -1,4 +1,5 @@
-import type { FeedPost } from "../lib/api";
+import type { FeedPost, PostComment } from "../lib/api";
+import { CommentList } from "./CommentList";
 import { InlineCommentComposer } from "./InlineCommentComposer";
 
 type PostCardProps = {
@@ -12,6 +13,17 @@ type PostCardProps = {
   commentSuccessMessage?: string | null;
   onCommentDraftChange: (postId: string, value: string) => void;
   onSubmitComment: (postId: string) => Promise<void> | void;
+  latestComment: PostComment | null;
+  comments: PostComment[];
+  areCommentsExpanded: boolean;
+  isLatestCommentLoading: boolean;
+  isCommentsLoading: boolean;
+  isLoadingMoreComments: boolean;
+  commentsErrorMessage?: string | null;
+  loadMoreCommentsErrorMessage?: string | null;
+  hasMoreComments: boolean;
+  onToggleComments: (postId: string) => void;
+  onLoadMoreComments: (postId: string) => void;
 };
 
 function formatDate(value: string) {
@@ -38,7 +50,18 @@ export function PostCard({
   commentErrorMessage,
   commentSuccessMessage,
   onCommentDraftChange,
-  onSubmitComment
+  onSubmitComment,
+  latestComment,
+  comments,
+  areCommentsExpanded,
+  isLatestCommentLoading,
+  isCommentsLoading,
+  isLoadingMoreComments,
+  commentsErrorMessage,
+  loadMoreCommentsErrorMessage,
+  hasMoreComments,
+  onToggleComments,
+  onLoadMoreComments
 }: PostCardProps) {
   const wasUpdated = post.updatedAt !== post.createdAt;
   const heartSymbol = post.likedByMe ? "♥" : "♡";
@@ -95,6 +118,22 @@ export function PostCard({
         successMessage={commentSuccessMessage}
         onChange={onCommentDraftChange}
         onSubmit={onSubmitComment}
+      />
+
+      <CommentList
+        postId={post.id}
+        commentsCount={post.commentsCount}
+        latestComment={latestComment}
+        comments={comments}
+        isExpanded={areCommentsExpanded}
+        isPreviewLoading={isLatestCommentLoading}
+        isCommentsLoading={isCommentsLoading}
+        isLoadingMore={isLoadingMoreComments}
+        commentsErrorMessage={commentsErrorMessage}
+        loadMoreErrorMessage={loadMoreCommentsErrorMessage}
+        hasMore={hasMoreComments}
+        onToggleComments={onToggleComments}
+        onLoadMoreComments={onLoadMoreComments}
       />
     </article>
   );
