@@ -4,6 +4,7 @@ import { CreatePostForm } from "../components/CreatePostForm";
 import { PostCard } from "../components/PostCard";
 import {
   ApiError,
+  createCommentApi,
   getFeedApi,
   likePostApi,
   unlikePostApi,
@@ -30,6 +31,10 @@ export function FeedPlaceholderPage() {
   const [loadMoreErrorMessage, setLoadMoreErrorMessage] = useState<string | null>(null);
   const [pendingLikePostId, setPendingLikePostId] = useState<string | null>(null);
   const [likeErrorByPostId, setLikeErrorByPostId] = useState<Record<string, string | undefined>>({});
+  const [commentDraftByPostId, setCommentDraftByPostId] = useState<Record<string, string | undefined>>({});
+  const [pendingCommentPostId, setPendingCommentPostId] = useState<string | null>(null);
+  const [commentErrorByPostId, setCommentErrorByPostId] = useState<Record<string, string | undefined>>({});
+  const [commentSuccessByPostId, setCommentSuccessByPostId] = useState<Record<string, string | undefined>>({});
 
   const loadInitialFeed = useCallback(async (isCurrentRequest: () => boolean = () => true) => {
     if (!accessToken) {
@@ -169,6 +174,92 @@ export function FeedPlaceholderPage() {
     }
   }
 
+  function handleCommentDraftChange(postId: string, value: string) {
+    setCommentDraftByPostId((currentDrafts) => ({
+      ...currentDrafts,
+      [postId]: value
+    }));
+
+    setCommentErrorByPostId((currentErrors) => ({
+      ...currentErrors,
+      [postId]: undefined
+    }));
+
+    setCommentSuccessByPostId((currentSuccesses) => ({
+      ...currentSuccesses,
+      [postId]: undefined
+    }));
+  }
+
+  async function handleSubmitComment(postId: string) {
+    if (!accessToken || pendingCommentPostId) {
+      return;
+    }
+
+    const rawContent = commentDraftByPostId[postId] ?? "";
+    const trimmedContent = rawContent.trim();
+
+    if (!trimmedContent) {
+      setCommentErrorByPostId((currentErrors) => ({
+        ...currentErrors,
+        [postId]: "Comment content is required."
+      }));
+      return;
+    }
+
+    if (rawContent.length > 1000) {
+      setCommentErrorByPostId((currentErrors) => ({
+        ...currentErrors,
+        [postId]: "Comment content must be 1000 characters or less."
+      }));
+      return;
+    }
+
+    setPendingCommentPostId(postId);
+    setCommentErrorByPostId((currentErrors) => ({
+      ...currentErrors,
+      [postId]: undefined
+    }));
+    setCommentSuccessByPostId((currentSuccesses) => ({
+      ...currentSuccesses,
+      [postId]: undefined
+    }));
+
+    try {
+      await createCommentApi(accessToken, postId, {
+        content: trimmedContent
+      });
+
+      setCommentDraftByPostId((currentDrafts) => ({
+        ...currentDrafts,
+        [postId]: ""
+      }));
+
+      setPosts((currentPosts) =>
+        currentPosts.map((currentPost) =>
+          currentPost.id === postId
+            ? {
+                ...currentPost,
+                commentsCount: currentPost.commentsCount + 1
+              }
+            : currentPost
+        )
+      );
+
+      setCommentSuccessByPostId((currentSuccesses) => ({
+        ...currentSuccesses,
+        [postId]: "Comment posted."
+      }));
+    } catch {
+      setCommentErrorByPostId((currentErrors) => ({
+        ...currentErrors,
+        [postId]: "Could not add comment."
+      }));
+    } finally {
+      setPendingCommentPostId(null);
+    }
+  }
+
   const hasPosts = posts.length > 0;
 
   return (
@@ -225,6 +316,12 @@ export function FeedPlaceholderPage() {
               isLikePending={pendingLikePostId === post.id}
               likeErrorMessage={likeErrorByPostId[post.id] ?? null}
               onToggleLike={handleToggleLike}
+              commentDraft={commentDraftByPostId[post.id] ?? ""}
+              isCommentPending={pendingCommentPostId === post.id}
+              commentErrorMessage={commentErrorByPostId[post.id] ?? null}
+              commentSuccessMessage={commentSuccessByPostId[post.id] ?? null}
+              onCommentDraftChange={handleCommentDraftChange}
+              onSubmitComment={handleSubmitComment}
             />
           ))}
         </div>

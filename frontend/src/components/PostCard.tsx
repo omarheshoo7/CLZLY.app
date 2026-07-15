@@ -1,10 +1,17 @@
 import type { FeedPost } from "../lib/api";
+import { InlineCommentComposer } from "./InlineCommentComposer";
 
 type PostCardProps = {
   post: FeedPost;
   isLikePending: boolean;
   likeErrorMessage?: string | null;
   onToggleLike: (post: FeedPost) => Promise<void> | void;
+  commentDraft: string;
+  isCommentPending: boolean;
+  commentErrorMessage?: string | null;
+  commentSuccessMessage?: string | null;
+  onCommentDraftChange: (postId: string, value: string) => void;
+  onSubmitComment: (postId: string) => Promise<void> | void;
 };
 
 function formatDate(value: string) {
@@ -25,7 +32,13 @@ export function PostCard({
   post,
   isLikePending,
   likeErrorMessage,
-  onToggleLike
+  onToggleLike,
+  commentDraft,
+  isCommentPending,
+  commentErrorMessage,
+  commentSuccessMessage,
+  onCommentDraftChange,
+  onSubmitComment
 }: PostCardProps) {
   const wasUpdated = post.updatedAt !== post.createdAt;
   const heartSymbol = post.likedByMe ? "♥" : "♡";
@@ -73,6 +86,16 @@ export function PostCard({
           <p className="mt-3 text-sm text-red-700">{likeErrorMessage}</p>
         ) : null}
       </div>
+
+      <InlineCommentComposer
+        postId={post.id}
+        value={commentDraft}
+        isPending={isCommentPending}
+        errorMessage={commentErrorMessage}
+        successMessage={commentSuccessMessage}
+        onChange={onCommentDraftChange}
+        onSubmit={onSubmitComment}
+      />
     </article>
   );
 }
