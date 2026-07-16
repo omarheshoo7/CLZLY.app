@@ -34,9 +34,17 @@ export type User = {
   updatedAt: string;
 };
 
+export type PostAuthor = {
+  id: string;
+  username: string;
+  displayName: string | null;
+  profilePictureUrl: string | null;
+};
+
 export type FeedPost = {
   id: string;
   authorId: string;
+  author: PostAuthor | null;
   content: string;
   createdAt: string;
   updatedAt: string;
@@ -58,6 +66,7 @@ export type FeedData = {
 export type CreatedPost = {
   id: string;
   authorId: string;
+  author: PostAuthor | null;
   content: string;
   createdAt: string;
   updatedAt: string;

@@ -1,23 +1,30 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../prisma";
 import type { UserProfileParams } from "../schemas/user.schema";
 import { AppError } from "../utils/errors";
 import type { CreatePostInput, ProfilePostsQuery } from "../schemas/post.schema";
 
-const postSelect = {
+export const postAuthorSelect = {
+  id: true,
+  username: true,
+  displayName: true,
+  profilePictureUrl: true
+} as const;
+
+export const postSelect = {
   id: true,
   authorId: true,
+  author: {
+    select: postAuthorSelect
+  },
   content: true,
   createdAt: true,
   updatedAt: true
 } as const;
 
-type BasePost = {
-  id: string;
-  authorId: string;
-  content: string;
-  createdAt: Date;
-  updatedAt: Date;
-};
+type BasePost = Prisma.PostGetPayload<{
+  select: typeof postSelect;
+}>;
 
 type PostWithMetadata = BasePost & {
   likesCount: number;
@@ -287,10 +294,14 @@ export async function getPostById({ postId, viewerUserId }: GetPostByIdInput) {
       id: postId
     },
     select: {
-      ...postSelect,
+      id: true,
+      authorId: true,
+      content: true,
+      createdAt: true,
+      updatedAt: true,
       author: {
         select: {
-          id: true,
+          ...postAuthorSelect,
           isPrivate: true,
           isDisabled: true,
           deletedAt: true
@@ -303,8 +314,19 @@ export async function getPostById({ postId, viewerUserId }: GetPostByIdInput) {
     throw new AppError("Post not found", 404);
   }
 
-  if (viewerUserId === post.authorId || !post.author.isPrivate) {
-    const { author: _author, ...publicPost } = post;
+  const {
+    isPrivate: authorIsPrivate,
+    isDisabled: _authorIsDisabled,
+    deletedAt: _authorDeletedAt,
+    ...safeAuthor
+  } = post.author;
+  const { author: _author, ...postFields } = post;
+  const publicPost = {
+    ...postFields,
+    author: safeAuthor
+  };
+
+  if (viewerUserId === post.authorId || !authorIsPrivate) {
     return addPostMetadataToPost({
       post: publicPost,
       viewerUserId
@@ -327,7 +349,6 @@ export async function getPostById({ postId, viewerUserId }: GetPostByIdInput) {
     throw new AppError("Post not found", 404);
   }
 
-  const { author: _author, ...publicPost } = post;
   return addPostMetadataToPost({
     post: publicPost,
     viewerUserId

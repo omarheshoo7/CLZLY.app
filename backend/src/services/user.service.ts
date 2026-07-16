@@ -10,7 +10,7 @@ import type {
   UserSearchQuery
 } from "../schemas/user.schema";
 import type { ProfilePostsQuery } from "../schemas/post.schema";
-import { addPostMetadataToPosts } from "./post.service";
+import { addPostMetadataToPosts, postAuthorSelect, postSelect } from "./post.service";
 import { AppError } from "../utils/errors";
 
 const publicUserCardSelect = {
@@ -405,13 +405,7 @@ export async function getLikedPosts({ userId, query }: GetLikedPostsInput) {
     select: {
       id: true,
       post: {
-        select: {
-          id: true,
-          authorId: true,
-          content: true,
-          createdAt: true,
-          updatedAt: true
-        }
+        select: postSelect
       }
     }
   });
@@ -548,7 +542,7 @@ export async function getSavedPosts({ userId, query }: GetSavedPostsInput) {
           createdAt: true,
           updatedAt: true,
           author: {
-            select: publicUserCardSelect
+            select: postAuthorSelect
           }
         }
       }
@@ -563,6 +557,7 @@ export async function getSavedPosts({ userId, query }: GetSavedPostsInput) {
   const basePosts = savedPostsPage.map((savedPostRow) => ({
     id: savedPostRow.post.id,
     authorId: savedPostRow.post.authorId,
+    author: savedPostRow.post.author,
     content: savedPostRow.post.content,
     createdAt: savedPostRow.post.createdAt,
     updatedAt: savedPostRow.post.updatedAt
@@ -578,6 +573,7 @@ export async function getSavedPosts({ userId, query }: GetSavedPostsInput) {
 
       return {
         id: savedPostRow.post.id,
+        authorId: savedPostRow.post.authorId,
         content: savedPostRow.post.content,
         imageUrl: null,
         createdAt: savedPostRow.post.createdAt,
@@ -708,7 +704,7 @@ export async function getHiddenPosts({ userId, query }: GetHiddenPostsInput) {
           createdAt: true,
           updatedAt: true,
           author: {
-            select: publicUserCardSelect
+            select: postAuthorSelect
           }
         }
       }
@@ -723,6 +719,7 @@ export async function getHiddenPosts({ userId, query }: GetHiddenPostsInput) {
   const basePosts = hiddenPostsPage.map((hiddenPostRow) => ({
     id: hiddenPostRow.post.id,
     authorId: hiddenPostRow.post.authorId,
+    author: hiddenPostRow.post.author,
     content: hiddenPostRow.post.content,
     createdAt: hiddenPostRow.post.createdAt,
     updatedAt: hiddenPostRow.post.updatedAt
@@ -738,6 +735,7 @@ export async function getHiddenPosts({ userId, query }: GetHiddenPostsInput) {
 
       return {
         id: hiddenPostRow.post.id,
+        authorId: hiddenPostRow.post.authorId,
         content: hiddenPostRow.post.content,
         imageUrl: null,
         createdAt: hiddenPostRow.post.createdAt,

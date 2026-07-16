@@ -1,15 +1,7 @@
 import { prisma } from "../prisma";
 import type { ProfilePostsQuery } from "../schemas/post.schema";
-import { addPostMetadataToPosts } from "./post.service";
+import { addPostMetadataToPosts, postSelect } from "./post.service";
 import { AppError } from "../utils/errors";
-
-const postSelect = {
-  id: true,
-  authorId: true,
-  content: true,
-  createdAt: true,
-  updatedAt: true
-} as const;
 
 type GetFeedInput = {
   viewerUserId: string;

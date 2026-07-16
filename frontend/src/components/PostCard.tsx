@@ -40,10 +40,6 @@ function formatDate(value: string) {
   return date.toLocaleString();
 }
 
-function shortenId(value: string) {
-  return value.length > 12 ? `${value.slice(0, 12)}...` : value;
-}
-
 export function PostCard({
   post,
   isLikePending,
@@ -73,6 +69,7 @@ export function PostCard({
 }: PostCardProps) {
   const wasUpdated = post.updatedAt !== post.createdAt;
   const heartSymbol = post.likedByMe ? "♥" : "♡";
+  const authorName = post.author?.username ?? "Unknown user";
   const heartClassName = post.likedByMe
     ? "scale-110 text-red-500"
     : "text-gray-400 group-hover:text-red-400";
@@ -80,9 +77,7 @@ export function PostCard({
   return (
     <article className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
       <div>
-        <p className="text-sm font-medium text-gray-700">
-          Author ID: <span className="text-gray-950">{shortenId(post.authorId)}</span>
-        </p>
+        <p className="text-sm font-medium text-gray-950">{authorName}</p>
         <p className="mt-1 text-xs text-gray-500">Posted {formatDate(post.createdAt)}</p>
         {wasUpdated ? (
           <p className="mt-1 text-xs text-gray-500">Updated {formatDate(post.updatedAt)}</p>
