@@ -1,11 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { ApiError, createPostApi, type PostType } from "../lib/api";
-import { postTypeOptions } from "../lib/postTypes";
+import { postTypeOptions, postTypePrompts } from "../lib/postTypes";
 
 const MAX_POST_LENGTH = 2000;
 
 type CreatePostFormProps = {
   accessToken: string;
+  defaultPostType?: PostType;
   onPostCreated: () => Promise<void> | void;
 };
 
@@ -13,16 +14,25 @@ function getCreatePostErrorMessage(error: unknown) {
   return error instanceof ApiError ? error.message : "Could not create post.";
 }
 
-export function CreatePostForm({ accessToken, onPostCreated }: CreatePostFormProps) {
+export function CreatePostForm({
+  accessToken,
+  defaultPostType = "PERSONAL",
+  onPostCreated
+}: CreatePostFormProps) {
   const [content, setContent] = useState("");
-  const [postType, setPostType] = useState<PostType>("PERSONAL");
+  const [postType, setPostType] = useState<PostType>(defaultPostType);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  const selectedPrompt = postTypePrompts[postType];
   const trimmedContent = content.trim();
   const isOverLimit = content.length > MAX_POST_LENGTH;
   const isSubmitDisabled = isSubmitting || trimmedContent.length === 0 || isOverLimit;
+
+  useEffect(() => {
+    setPostType(defaultPostType);
+  }, [defaultPostType]);
 
   useEffect(() => {
     if (!successMessage) {
@@ -62,7 +72,7 @@ export function CreatePostForm({ accessToken, onPostCreated }: CreatePostFormPro
       });
 
       setContent("");
-      setPostType("PERSONAL");
+      setPostType(defaultPostType);
       setErrorMessage(null);
 
       try {
@@ -86,7 +96,7 @@ export function CreatePostForm({ accessToken, onPostCreated }: CreatePostFormPro
       <div>
         <h3 className="text-base font-semibold text-gray-950">Create a post</h3>
         <p className="mt-1 text-sm text-gray-600">
-          Choose where this post belongs, then share it with your feed.
+          {selectedPrompt.helperText}
         </p>
       </div>
 
@@ -121,7 +131,7 @@ export function CreatePostForm({ accessToken, onPostCreated }: CreatePostFormPro
         <textarea
           id="post-content"
           className="min-h-32 w-full resize-y rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-950 outline-none transition placeholder:text-gray-400 focus:border-gray-950 focus:ring-2 focus:ring-gray-950/10 disabled:cursor-not-allowed disabled:bg-gray-50"
-          placeholder="What would you like to share?"
+          placeholder={selectedPrompt.placeholder}
           value={content}
           maxLength={MAX_POST_LENGTH}
           disabled={isSubmitting}
@@ -132,6 +142,9 @@ export function CreatePostForm({ accessToken, onPostCreated }: CreatePostFormPro
             }
           }}
         />
+        <p className="mt-2 text-sm text-gray-500">
+          Example: {selectedPrompt.example}
+        </p>
       </div>
 
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -143,7 +156,7 @@ export function CreatePostForm({ accessToken, onPostCreated }: CreatePostFormPro
           type="submit"
           disabled={isSubmitDisabled}
         >
-          {isSubmitting ? "Posting post..." : "Post"}
+          {isSubmitting ? "Posting..." : "Post"}
         </button>
       </div>
 

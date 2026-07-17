@@ -17,7 +17,14 @@ export type FeedSection = {
   description: string;
   emptyTitle: string;
   emptyMessage: string;
+  defaultPostType: PostType;
   types?: PostType[];
+};
+
+export type PostTypePrompt = {
+  placeholder: string;
+  helperText: string;
+  example: string;
 };
 
 export const postTypeOptions: Array<{ value: PostType; label: string }> = [
@@ -40,6 +47,44 @@ export const postTypeLabels: Record<PostType, string> = {
   PERSONAL: "Personal"
 };
 
+export const postTypePrompts: Record<PostType, PostTypePrompt> = {
+  PERSONAL: {
+    placeholder: "What would you like to share?",
+    helperText: "Share a personal update with your followers.",
+    example: "Just finished a long coding session and went for coffee."
+  },
+  QUESTION: {
+    placeholder: "What question do you want to ask?",
+    helperText: "Ask clearly so others can understand and answer.",
+    example: "How should I organize my Prisma services?"
+  },
+  HELP_NEEDED: {
+    placeholder: "What are you stuck on?",
+    helperText: "Explain the problem and what kind of help you need.",
+    example: "I need help debugging my React state update."
+  },
+  MARKETPLACE: {
+    placeholder: "What are you looking for or offering?",
+    helperText: "Use this for needs, offers, opportunities, collaborations, or recommendations.",
+    example: "Looking for someone to review my portfolio project."
+  },
+  RESOURCE: {
+    placeholder: "What useful resource do you want to share?",
+    helperText: "Share links, tools, articles, tutorials, courses, or recommendations.",
+    example: "This JWT article helped me understand refresh tokens."
+  },
+  UPDATE: {
+    placeholder: "What progress did you make?",
+    helperText: "Share what you worked on, learned, or improved.",
+    example: "Today I finished the F10 feed structure feature."
+  },
+  WIN: {
+    placeholder: "What did you achieve?",
+    helperText: "Celebrate a milestone, achievement, or good news.",
+    example: "I successfully pushed F10 to staging."
+  }
+};
+
 export const feedSections: FeedSection[] = [
   {
     key: "all",
@@ -48,7 +93,8 @@ export const feedSections: FeedSection[] = [
     title: "Feed",
     description: "Posts from you and people you follow will appear here.",
     emptyTitle: "No posts yet.",
-    emptyMessage: "Posts from people you follow will appear here."
+    emptyMessage: "Posts from people you follow will appear here.",
+    defaultPostType: "PERSONAL"
   },
   {
     key: "questions",
@@ -58,6 +104,7 @@ export const feedSections: FeedSection[] = [
     description: "Questions from you and people you follow.",
     emptyTitle: "No questions yet.",
     emptyMessage: "Question posts from people you follow will appear here.",
+    defaultPostType: "QUESTION",
     types: ["QUESTION"]
   },
   {
@@ -68,6 +115,7 @@ export const feedSections: FeedSection[] = [
     description: "Help requests from you and people you follow.",
     emptyTitle: "No help requests yet.",
     emptyMessage: "Help Needed posts from people you follow will appear here.",
+    defaultPostType: "HELP_NEEDED",
     types: ["HELP_NEEDED"]
   },
   {
@@ -78,6 +126,7 @@ export const feedSections: FeedSection[] = [
     description: "Needs and offers from you and people you follow.",
     emptyTitle: "No marketplace posts yet.",
     emptyMessage: "Marketplace posts from people you follow will appear here.",
+    defaultPostType: "MARKETPLACE",
     types: ["MARKETPLACE"]
   },
   {
@@ -88,6 +137,7 @@ export const feedSections: FeedSection[] = [
     description: "Useful resources from you and people you follow.",
     emptyTitle: "No resources yet.",
     emptyMessage: "Resource posts from people you follow will appear here.",
+    defaultPostType: "RESOURCE",
     types: ["RESOURCE"]
   },
   {
@@ -98,6 +148,7 @@ export const feedSections: FeedSection[] = [
     description: "Progress updates and wins from you and people you follow.",
     emptyTitle: "No updates or wins yet.",
     emptyMessage: "Update and Win posts from people you follow will appear here.",
+    defaultPostType: "UPDATE",
     types: ["UPDATE", "WIN"]
   },
   {
@@ -108,6 +159,7 @@ export const feedSections: FeedSection[] = [
     description: "Personal posts from you and people you follow.",
     emptyTitle: "No personal posts yet.",
     emptyMessage: "Personal posts from people you follow will appear here.",
+    defaultPostType: "PERSONAL",
     types: ["PERSONAL"]
   }
 ];

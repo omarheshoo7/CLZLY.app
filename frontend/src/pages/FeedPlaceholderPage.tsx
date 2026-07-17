@@ -593,6 +593,7 @@ export function FeedPlaceholderPage({ section }: FeedPlaceholderPageProps) {
       {accessToken ? (
         <CreatePostForm
           accessToken={accessToken}
+          defaultPostType={activeSection.defaultPostType}
           onPostCreated={handlePostCreated}
         />
       ) : null}
