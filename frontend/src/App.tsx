@@ -50,7 +50,13 @@ export default function App() {
         )}
       >
         <Route index element={<Navigate to="/app/feed" replace />} />
-        <Route path="feed" element={<FeedPlaceholderPage />} />
+        <Route path="feed" element={<FeedPlaceholderPage section="all" />} />
+        <Route path="feed/questions" element={<FeedPlaceholderPage section="questions" />} />
+        <Route path="feed/help-needed" element={<FeedPlaceholderPage section="help-needed" />} />
+        <Route path="feed/marketplace" element={<FeedPlaceholderPage section="marketplace" />} />
+        <Route path="feed/resources" element={<FeedPlaceholderPage section="resources" />} />
+        <Route path="feed/updates" element={<FeedPlaceholderPage section="updates" />} />
+        <Route path="feed/personal" element={<FeedPlaceholderPage section="personal" />} />
         <Route path="profile" element={<ProfilePlaceholderPage />} />
         <Route path="saved" element={<SavedPlaceholderPage />} />
         <Route path="hidden-posts" element={<HiddenPostsPlaceholderPage />} />

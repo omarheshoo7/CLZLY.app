@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { NavLink } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { CreatePostForm } from "../components/CreatePostForm";
 import { PostCard } from "../components/PostCard";
@@ -15,6 +16,7 @@ import {
   type PostComment,
   type PostCommentsPagination
 } from "../lib/api";
+import { feedSectionByKey, feedSections, type FeedSectionKey } from "../lib/postTypes";
 
 const COMMENTS_PAGE_SIZE = 20;
 const LATEST_COMMENT_PREVIEW_LIMIT = 1;
@@ -28,8 +30,14 @@ function getRequestErrorMessage(error: unknown) {
   return error instanceof ApiError ? error.message : "Could not load feed.";
 }
 
-export function FeedPlaceholderPage() {
+type FeedPlaceholderPageProps = {
+  section: FeedSectionKey;
+};
+
+export function FeedPlaceholderPage({ section }: FeedPlaceholderPageProps) {
   const { accessToken, user } = useAuth();
+  const activeSection = feedSectionByKey[section];
+  const activeTypes = activeSection.types;
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [pagination, setPagination] = useState<FeedPagination>(emptyPagination);
   const [isLoadingInitial, setIsLoadingInitial] = useState(true);
@@ -65,9 +73,13 @@ export function FeedPlaceholderPage() {
     setIsLoadingInitial(true);
     setErrorMessage(null);
     setLoadMoreErrorMessage(null);
+    setPosts([]);
+    setPagination(emptyPagination);
 
     try {
-      const response = await getFeedApi(accessToken);
+      const response = await getFeedApi(accessToken, {
+        types: activeTypes
+      });
 
       if (!isCurrentRequest()) {
         return;
@@ -88,20 +100,22 @@ export function FeedPlaceholderPage() {
         setIsLoadingInitial(false);
       }
     }
-  }, [accessToken]);
+  }, [accessToken, activeTypes]);
 
   const refreshFirstFeedPage = useCallback(async () => {
     if (!accessToken) {
       return;
     }
 
-    const response = await getFeedApi(accessToken);
+    const response = await getFeedApi(accessToken, {
+      types: activeTypes
+    });
 
     setPosts(response.data.posts);
     setPagination(response.data.pagination);
     setLoadMoreErrorMessage(null);
     setErrorMessage(null);
-  }, [accessToken]);
+  }, [accessToken, activeTypes]);
 
   useEffect(() => {
     let isCurrentRequest = true;
@@ -185,7 +199,8 @@ export function FeedPlaceholderPage() {
 
     try {
       const response = await getFeedApi(accessToken, {
-        cursor: pagination.nextCursor
+        cursor: pagination.nextCursor,
+        types: activeTypes
       });
 
       setPosts((currentPosts) => [...currentPosts, ...response.data.posts]);
@@ -551,11 +566,29 @@ export function FeedPlaceholderPage() {
   return (
     <section className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-950">Feed</h2>
+        <h2 className="text-2xl font-bold text-gray-950">{activeSection.title}</h2>
         <p className="mt-2 text-sm text-gray-600">
-          Posts from you and people you follow will appear here.
+          {activeSection.description}
         </p>
       </div>
+
+      <nav className="flex flex-wrap gap-2" aria-label="Feed sections">
+        {feedSections.map((feedSection) => (
+          <NavLink
+            key={feedSection.key}
+            to={feedSection.path}
+            end={feedSection.key === "all"}
+            className={({ isActive }) => [
+              "rounded-md px-3 py-2 text-sm font-medium transition",
+              isActive
+                ? "bg-gray-950 text-white"
+                : "border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-950"
+            ].join(" ")}
+          >
+            {feedSection.label}
+          </NavLink>
+        ))}
+      </nav>
 
       {accessToken ? (
         <CreatePostForm
@@ -586,9 +619,9 @@ export function FeedPlaceholderPage() {
 
       {!isLoadingInitial && !errorMessage && !hasPosts ? (
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="text-base font-semibold text-gray-950">No posts yet.</h3>
+          <h3 className="text-base font-semibold text-gray-950">{activeSection.emptyTitle}</h3>
           <p className="mt-2 text-sm text-gray-600">
-            Posts from people you follow will appear here.
+            {activeSection.emptyMessage}
           </p>
         </div>
       ) : null}

@@ -1,11 +1,12 @@
+import type { PostType, Prisma } from "@prisma/client";
 import { prisma } from "../prisma";
-import type { ProfilePostsQuery } from "../schemas/post.schema";
+import type { FeedQuery } from "../schemas/post.schema";
 import { addPostMetadataToPosts, postSelect } from "./post.service";
 import { AppError } from "../utils/errors";
 
 type GetFeedInput = {
   viewerUserId: string;
-  query: ProfilePostsQuery;
+  query: FeedQuery;
 };
 
 export async function getFeed({ viewerUserId, query }: GetFeedInput) {
@@ -20,11 +21,19 @@ export async function getFeed({ viewerUserId, query }: GetFeedInput) {
   });
 
   const visibleAuthorIds = [viewerUserId, ...acceptedFollows.map((follow) => follow.followingId)];
+  const typeFilter: Prisma.PostWhereInput = query.types?.length
+    ? {
+        type: {
+          in: query.types
+        }
+      }
+    : {};
 
   let cursorPost:
     | {
         id: string;
         authorId: string;
+        type: PostType;
         createdAt: Date;
         author: {
           isDisabled: boolean;
@@ -42,6 +51,7 @@ export async function getFeed({ viewerUserId, query }: GetFeedInput) {
       select: {
         id: true,
         authorId: true,
+        type: true,
         createdAt: true,
         author: {
           select: {
@@ -64,6 +74,7 @@ export async function getFeed({ viewerUserId, query }: GetFeedInput) {
     const cursorIsVisible =
       cursorPost &&
       visibleAuthorIds.includes(cursorPost.authorId) &&
+      (!query.types?.length || query.types.includes(cursorPost.type)) &&
       !cursorPost.author.isDisabled &&
       cursorPost.author.deletedAt === null &&
       cursorPost.hiddenBy.length === 0;
@@ -87,6 +98,7 @@ export async function getFeed({ viewerUserId, query }: GetFeedInput) {
           userId: viewerUserId
         }
       },
+      ...typeFilter,
       ...(cursorPost
         ? {
             OR: [

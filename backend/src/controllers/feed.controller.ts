@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import type { ProfilePostsQuery } from "../schemas/post.schema";
+import type { FeedQuery } from "../schemas/post.schema";
 import { getFeed } from "../services/feed.service";
 import { AppError } from "../utils/errors";
 
@@ -11,7 +11,7 @@ export async function getFeedHandler(req: Request, res: Response, next: NextFunc
 
     const { posts, pagination } = await getFeed({
       viewerUserId: req.user.userId,
-      query: req.query as unknown as ProfilePostsQuery
+      query: req.query as unknown as FeedQuery
     });
 
     res.status(200).json({

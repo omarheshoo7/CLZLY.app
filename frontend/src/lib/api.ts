@@ -41,10 +41,20 @@ export type PostAuthor = {
   profilePictureUrl: string | null;
 };
 
+export type PostType =
+  | "QUESTION"
+  | "HELP_NEEDED"
+  | "MARKETPLACE"
+  | "RESOURCE"
+  | "UPDATE"
+  | "WIN"
+  | "PERSONAL";
+
 export type FeedPost = {
   id: string;
   authorId: string;
   author: PostAuthor | null;
+  type: PostType;
   content: string;
   createdAt: string;
   updatedAt: string;
@@ -67,6 +77,7 @@ export type CreatedPost = {
   id: string;
   authorId: string;
   author: PostAuthor | null;
+  type: PostType;
   content: string;
   createdAt: string;
   updatedAt: string;
@@ -128,6 +139,12 @@ type RefreshData = {
 
 type CurrentUserData = {
   user: User;
+};
+
+type GetFeedParams = {
+  cursor?: string;
+  limit?: number;
+  types?: PostType[];
 };
 
 export type LoginInput = {
@@ -224,7 +241,7 @@ export async function getCurrentUserApi(token: string) {
 
 export async function getFeedApi(
   accessToken: string,
-  params?: { cursor?: string; limit?: number }
+  params?: GetFeedParams
 ) {
   const searchParams = new URLSearchParams();
 
@@ -236,6 +253,10 @@ export async function getFeedApi(
     searchParams.set("limit", String(params.limit));
   }
 
+  if (params?.types?.length) {
+    searchParams.set("types", params.types.join(","));
+  }
+
   const queryString = searchParams.toString();
 
   return apiRequest<FeedData>(`/feed${queryString ? `?${queryString}` : ""}`, {
@@ -245,7 +266,7 @@ export async function getFeedApi(
 
 export async function createPostApi(
   accessToken: string,
-  payload: { content: string }
+  payload: { content: string; type: PostType }
 ) {
   return apiRequest<CreatePostData>("/posts", {
     method: "POST",

@@ -538,6 +538,7 @@ export async function getSavedPosts({ userId, query }: GetSavedPostsInput) {
         select: {
           id: true,
           authorId: true,
+          type: true,
           content: true,
           createdAt: true,
           updatedAt: true,
@@ -558,6 +559,7 @@ export async function getSavedPosts({ userId, query }: GetSavedPostsInput) {
     id: savedPostRow.post.id,
     authorId: savedPostRow.post.authorId,
     author: savedPostRow.post.author,
+    type: savedPostRow.post.type,
     content: savedPostRow.post.content,
     createdAt: savedPostRow.post.createdAt,
     updatedAt: savedPostRow.post.updatedAt
@@ -574,6 +576,7 @@ export async function getSavedPosts({ userId, query }: GetSavedPostsInput) {
       return {
         id: savedPostRow.post.id,
         authorId: savedPostRow.post.authorId,
+        type: savedPostRow.post.type,
         content: savedPostRow.post.content,
         imageUrl: null,
         createdAt: savedPostRow.post.createdAt,
@@ -700,6 +703,7 @@ export async function getHiddenPosts({ userId, query }: GetHiddenPostsInput) {
         select: {
           id: true,
           authorId: true,
+          type: true,
           content: true,
           createdAt: true,
           updatedAt: true,
@@ -720,6 +724,7 @@ export async function getHiddenPosts({ userId, query }: GetHiddenPostsInput) {
     id: hiddenPostRow.post.id,
     authorId: hiddenPostRow.post.authorId,
     author: hiddenPostRow.post.author,
+    type: hiddenPostRow.post.type,
     content: hiddenPostRow.post.content,
     createdAt: hiddenPostRow.post.createdAt,
     updatedAt: hiddenPostRow.post.updatedAt
@@ -736,6 +741,7 @@ export async function getHiddenPosts({ userId, query }: GetHiddenPostsInput) {
       return {
         id: hiddenPostRow.post.id,
         authorId: hiddenPostRow.post.authorId,
+        type: hiddenPostRow.post.type,
         content: hiddenPostRow.post.content,
         imageUrl: null,
         createdAt: hiddenPostRow.post.createdAt,

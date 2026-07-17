@@ -1,5 +1,49 @@
 import { z } from "zod";
 
+const postTypeValues = [
+  "QUESTION",
+  "HELP_NEEDED",
+  "MARKETPLACE",
+  "RESOURCE",
+  "UPDATE",
+  "WIN",
+  "PERSONAL"
+] as const;
+
+export const postTypeSchema = z.enum(postTypeValues);
+
+const paginationQuerySchema = {
+  limit: z.coerce
+    .number()
+    .int("Limit must be an integer")
+    .min(1, "Limit must be at least 1")
+    .max(50, "Limit must be at most 50")
+    .default(20),
+  cursor: z.preprocess(
+    (value) => (typeof value === "string" ? value.trim() : value),
+    z.string().min(1, "Cursor is required").optional()
+  )
+};
+
+const feedTypesQuerySchema = z.preprocess(
+  (value) => {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    const rawValues = Array.isArray(value) ? value : [value];
+
+    return rawValues.flatMap((rawValue) => {
+      if (typeof rawValue !== "string") {
+        return rawValue;
+      }
+
+      return rawValue.split(",").map((type) => type.trim());
+    });
+  },
+  z.array(postTypeSchema).min(1, "At least one post type is required").optional()
+).transform((types) => (types ? Array.from(new Set(types)) : undefined));
+
 export const createPostSchema = z
   .object({
     content: z
@@ -10,7 +54,8 @@ export const createPostSchema = z
           .string()
           .min(1, "Post content is required")
           .max(2000, "Post content must be at most 2000 characters")
-      )
+      ),
+    type: postTypeSchema.default("PERSONAL")
   })
   .strict();
 
@@ -52,16 +97,14 @@ export const createCommentSchema = z
 
 export const profilePostsQuerySchema = z
   .object({
-    limit: z.coerce
-      .number()
-      .int("Limit must be an integer")
-      .min(1, "Limit must be at least 1")
-      .max(50, "Limit must be at most 50")
-      .default(20),
-    cursor: z.preprocess(
-      (value) => (typeof value === "string" ? value.trim() : value),
-      z.string().min(1, "Cursor is required").optional()
-    )
+    ...paginationQuerySchema
+  })
+  .strict();
+
+export const feedQuerySchema = z
+  .object({
+    ...paginationQuerySchema,
+    types: feedTypesQuerySchema
   })
   .strict();
 
@@ -86,4 +129,5 @@ export type CreateCommentInput = z.infer<typeof createCommentSchema>;
 export type DeletePostParams = z.infer<typeof deletePostParamsSchema>;
 export type DeleteCommentParams = z.infer<typeof deleteCommentParamsSchema>;
 export type ProfilePostsQuery = z.infer<typeof profilePostsQuerySchema>;
+export type FeedQuery = z.infer<typeof feedQuerySchema>;
 export type ListPostCommentsQuery = z.infer<typeof listPostCommentsQuerySchema>;

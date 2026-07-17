@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { ApiError, createPostApi } from "../lib/api";
+import { ApiError, createPostApi, type PostType } from "../lib/api";
+import { postTypeOptions } from "../lib/postTypes";
 
 const MAX_POST_LENGTH = 2000;
 
@@ -14,6 +15,7 @@ function getCreatePostErrorMessage(error: unknown) {
 
 export function CreatePostForm({ accessToken, onPostCreated }: CreatePostFormProps) {
   const [content, setContent] = useState("");
+  const [postType, setPostType] = useState<PostType>("PERSONAL");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -55,10 +57,12 @@ export function CreatePostForm({ accessToken, onPostCreated }: CreatePostFormPro
 
     try {
       await createPostApi(accessToken, {
-        content: trimmedContent
+        content: trimmedContent,
+        type: postType
       });
 
       setContent("");
+      setPostType("PERSONAL");
       setErrorMessage(null);
 
       try {
@@ -82,8 +86,32 @@ export function CreatePostForm({ accessToken, onPostCreated }: CreatePostFormPro
       <div>
         <h3 className="text-base font-semibold text-gray-950">Create a post</h3>
         <p className="mt-1 text-sm text-gray-600">
-          Share a text update with your feed.
+          Choose where this post belongs, then share it with your feed.
         </p>
+      </div>
+
+      <div className="mt-4">
+        <label className="mb-2 block text-sm font-medium text-gray-700" htmlFor="post-type">
+          Type
+        </label>
+        <select
+          id="post-type"
+          className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-950 outline-none transition focus:border-gray-950 focus:ring-2 focus:ring-gray-950/10 disabled:cursor-not-allowed disabled:bg-gray-50 sm:max-w-xs"
+          value={postType}
+          disabled={isSubmitting}
+          onChange={(event) => {
+            setPostType(event.target.value as PostType);
+            if (errorMessage) {
+              setErrorMessage(null);
+            }
+          }}
+        >
+          {postTypeOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="mt-4">

@@ -12,6 +12,16 @@ enum FollowStatus {
   ACCEPTED
 }
 
+enum PostType {
+  QUESTION
+  HELP_NEEDED
+  MARKETPLACE
+  RESOURCE
+  UPDATE
+  WIN
+  PERSONAL
+}
+
 model User {
   id                String    @id @default(cuid())
   username          String    @unique
@@ -47,6 +57,7 @@ model User {
 model Post {
   id        String   @id @default(cuid())
   authorId  String
+  type      PostType @default(PERSONAL)
   content   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -59,6 +70,7 @@ model Post {
 
   @@index([authorId])
   @@index([createdAt])
+  @@index([type, createdAt])
 }
 
 model Comment {

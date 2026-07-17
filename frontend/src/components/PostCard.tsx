@@ -1,4 +1,5 @@
 import type { FeedPost, PostComment } from "../lib/api";
+import { postTypeLabels } from "../lib/postTypes";
 import { CommentList } from "./CommentList";
 import { InlineCommentComposer } from "./InlineCommentComposer";
 
@@ -77,7 +78,12 @@ export function PostCard({
   return (
     <article className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
       <div>
-        <p className="text-sm font-medium text-gray-950">{authorName}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm font-medium text-gray-950">{authorName}</p>
+          <span className="rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs font-medium text-gray-600">
+            {postTypeLabels[post.type]}
+          </span>
+        </div>
         <p className="mt-1 text-xs text-gray-500">Posted {formatDate(post.createdAt)}</p>
         {wasUpdated ? (
           <p className="mt-1 text-xs text-gray-500">Updated {formatDate(post.updatedAt)}</p>

@@ -17,6 +17,7 @@ export const postSelect = {
   author: {
     select: postAuthorSelect
   },
+  type: true,
   content: true,
   createdAt: true,
   updatedAt: true
@@ -234,6 +235,7 @@ export async function createPost({ authorId, data }: CreatePostServiceInput) {
   return prisma.post.create({
     data: {
       authorId,
+      type: data.type,
       content: data.content
     },
     select: postSelect
@@ -296,6 +298,7 @@ export async function getPostById({ postId, viewerUserId }: GetPostByIdInput) {
     select: {
       id: true,
       authorId: true,
+      type: true,
       content: true,
       createdAt: true,
       updatedAt: true,
