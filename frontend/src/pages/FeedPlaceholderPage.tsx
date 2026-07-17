@@ -6,6 +6,7 @@ import { PostCard } from "../components/PostCard";
 import {
   ApiError,
   createCommentApi,
+  deletePostApi,
   deleteCommentApi,
   getFeedApi,
   getPostCommentsApi,
@@ -28,6 +29,12 @@ const emptyPagination: FeedPagination = {
 
 function getRequestErrorMessage(error: unknown) {
   return error instanceof ApiError ? error.message : "Could not load feed.";
+}
+
+function removeRecordEntry<T>(record: Record<string, T>, key: string) {
+  const nextRecord = { ...record };
+  delete nextRecord[key];
+  return nextRecord;
 }
 
 type FeedPlaceholderPageProps = {
@@ -59,6 +66,8 @@ export function FeedPlaceholderPage({ section }: FeedPlaceholderPageProps) {
   const [loadMoreCommentsLoadingByPostId, setLoadMoreCommentsLoadingByPostId] = useState<Record<string, boolean | undefined>>({});
   const [commentsErrorByPostId, setCommentsErrorByPostId] = useState<Record<string, string | undefined>>({});
   const [loadMoreCommentsErrorByPostId, setLoadMoreCommentsErrorByPostId] = useState<Record<string, string | undefined>>({});
+  const [pendingDeletePostId, setPendingDeletePostId] = useState<string | null>(null);
+  const [deletePostErrorById, setDeletePostErrorById] = useState<Record<string, string | undefined>>({});
   const [pendingDeleteCommentId, setPendingDeleteCommentId] = useState<string | null>(null);
   const [deleteCommentErrorByCommentId, setDeleteCommentErrorByCommentId] = useState<Record<string, string | undefined>>({});
 
@@ -266,6 +275,56 @@ export function FeedPlaceholderPage({ section }: FeedPlaceholderPageProps) {
       }));
     } finally {
       setPendingLikePostId(null);
+    }
+  }
+
+  async function handleDeletePost(postId: string) {
+    if (!accessToken || pendingDeletePostId) {
+      return;
+    }
+
+    const shouldDelete = window.confirm("Delete this post? This cannot be undone.");
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    setPendingDeletePostId(postId);
+    setDeletePostErrorById((currentErrors) => ({
+      ...currentErrors,
+      [postId]: undefined
+    }));
+
+    try {
+      await deletePostApi({
+        accessToken,
+        postId
+      });
+
+      setPosts((currentPosts) =>
+        currentPosts.filter((currentPost) => currentPost.id !== postId)
+      );
+      setLikeErrorByPostId((currentErrors) => removeRecordEntry(currentErrors, postId));
+      setCommentDraftByPostId((currentDrafts) => removeRecordEntry(currentDrafts, postId));
+      setCommentErrorByPostId((currentErrors) => removeRecordEntry(currentErrors, postId));
+      setCommentSuccessByPostId((currentSuccesses) => removeRecordEntry(currentSuccesses, postId));
+      setLatestCommentByPostId((currentComments) => removeRecordEntry(currentComments, postId));
+      setLatestCommentLoadingByPostId((currentLoading) => removeRecordEntry(currentLoading, postId));
+      setExpandedCommentsPostIds((currentExpanded) => removeRecordEntry(currentExpanded, postId));
+      setCommentsByPostId((currentComments) => removeRecordEntry(currentComments, postId));
+      setCommentsPaginationByPostId((currentPagination) => removeRecordEntry(currentPagination, postId));
+      setCommentsLoadingByPostId((currentLoading) => removeRecordEntry(currentLoading, postId));
+      setLoadMoreCommentsLoadingByPostId((currentLoading) => removeRecordEntry(currentLoading, postId));
+      setCommentsErrorByPostId((currentErrors) => removeRecordEntry(currentErrors, postId));
+      setLoadMoreCommentsErrorByPostId((currentErrors) => removeRecordEntry(currentErrors, postId));
+      setDeletePostErrorById((currentErrors) => removeRecordEntry(currentErrors, postId));
+    } catch {
+      setDeletePostErrorById((currentErrors) => ({
+        ...currentErrors,
+        [postId]: "Could not delete post."
+      }));
+    } finally {
+      setPendingDeletePostId(null);
     }
   }
 
@@ -652,8 +711,11 @@ export function FeedPlaceholderPage({ section }: FeedPlaceholderPageProps) {
               loadMoreCommentsErrorMessage={loadMoreCommentsErrorByPostId[post.id] ?? null}
               hasMoreComments={commentsPaginationByPostId[post.id]?.hasMore ?? false}
               currentUserId={user?.id ?? null}
+              pendingDeletePostId={pendingDeletePostId}
+              deletePostError={deletePostErrorById[post.id] ?? null}
               pendingDeleteCommentId={pendingDeleteCommentId}
               deleteCommentErrorByCommentId={deleteCommentErrorByCommentId}
+              onDeletePost={handleDeletePost}
               onToggleComments={handleToggleComments}
               onLoadMoreComments={handleLoadMoreComments}
               onDeleteComment={handleDeleteComment}

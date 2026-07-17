@@ -24,8 +24,11 @@ type PostCardProps = {
   loadMoreCommentsErrorMessage?: string | null;
   hasMoreComments: boolean;
   currentUserId: string | null;
+  pendingDeletePostId: string | null;
+  deletePostError?: string | null;
   pendingDeleteCommentId: string | null;
   deleteCommentErrorByCommentId: Record<string, string | undefined>;
+  onDeletePost: (postId: string) => Promise<void> | void;
   onToggleComments: (postId: string) => void;
   onLoadMoreComments: (postId: string) => void;
   onDeleteComment: (postId: string, comment: PostComment) => void;
@@ -62,8 +65,11 @@ export function PostCard({
   loadMoreCommentsErrorMessage,
   hasMoreComments,
   currentUserId,
+  pendingDeletePostId,
+  deletePostError,
   pendingDeleteCommentId,
   deleteCommentErrorByCommentId,
+  onDeletePost,
   onToggleComments,
   onLoadMoreComments,
   onDeleteComment
@@ -71,24 +77,45 @@ export function PostCard({
   const wasUpdated = post.updatedAt !== post.createdAt;
   const heartSymbol = post.likedByMe ? "♥" : "♡";
   const authorName = post.author?.username ?? "Unknown user";
+  const isOwnPost =
+    currentUserId !== null &&
+    (post.author?.id === currentUserId || post.authorId === currentUserId);
+  const isDeletePending = pendingDeletePostId === post.id;
   const heartClassName = post.likedByMe
     ? "scale-110 text-red-500"
     : "text-gray-400 group-hover:text-red-400";
 
   return (
     <article className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-      <div>
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-sm font-medium text-gray-950">{authorName}</p>
-          <span className="rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs font-medium text-gray-600">
-            {postTypeLabels[post.type]}
-          </span>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-medium text-gray-950">{authorName}</p>
+            <span className="rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs font-medium text-gray-600">
+              {postTypeLabels[post.type]}
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-gray-500">Posted {formatDate(post.createdAt)}</p>
+          {wasUpdated ? (
+            <p className="mt-1 text-xs text-gray-500">Updated {formatDate(post.updatedAt)}</p>
+          ) : null}
         </div>
-        <p className="mt-1 text-xs text-gray-500">Posted {formatDate(post.createdAt)}</p>
-        {wasUpdated ? (
-          <p className="mt-1 text-xs text-gray-500">Updated {formatDate(post.updatedAt)}</p>
+
+        {isOwnPost ? (
+          <button
+            className="rounded-md px-2 py-1 text-sm font-medium text-red-700 transition hover:bg-red-50 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-60"
+            type="button"
+            disabled={isDeletePending}
+            onClick={() => void onDeletePost(post.id)}
+          >
+            {isDeletePending ? "Deleting..." : "Delete"}
+          </button>
         ) : null}
       </div>
+
+      {deletePostError ? (
+        <p className="mt-3 text-sm text-red-700">{deletePostError}</p>
+      ) : null}
 
       <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-gray-950">{post.content}</p>
 

@@ -289,6 +289,19 @@ export async function unlikePostApi(accessToken: string, postId: string) {
   });
 }
 
+export async function deletePostApi({
+  accessToken,
+  postId
+}: {
+  accessToken: string;
+  postId: string;
+}) {
+  return apiRequest<PostActionData>(`/posts/${postId}`, {
+    method: "DELETE",
+    token: accessToken
+  });
+}
+
 export async function createCommentApi(
   accessToken: string,
   postId: string,
