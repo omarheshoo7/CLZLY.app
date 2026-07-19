@@ -87,6 +87,10 @@ export type CreatePostData = {
   post: CreatedPost;
 };
 
+export type UpdatePostData = {
+  post: FeedPost;
+};
+
 export type PostActionData = Record<string, never>;
 
 export type CommentAuthor = {
@@ -272,6 +276,24 @@ export async function createPostApi(
     method: "POST",
     token: accessToken,
     body: payload
+  });
+}
+
+export async function updatePostApi({
+  accessToken,
+  postId,
+  content
+}: {
+  accessToken: string;
+  postId: string;
+  content: string;
+}) {
+  return apiRequest<UpdatePostData>(`/posts/${postId}`, {
+    method: "PATCH",
+    token: accessToken,
+    body: {
+      content
+    }
   });
 }
 

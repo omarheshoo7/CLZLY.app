@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../prisma";
 import type { UserProfileParams } from "../schemas/user.schema";
 import { AppError } from "../utils/errors";
-import type { CreatePostInput, ProfilePostsQuery } from "../schemas/post.schema";
+import type { CreatePostInput, ProfilePostsQuery, UpdatePostInput } from "../schemas/post.schema";
 
 export const postAuthorSelect = {
   id: true,
@@ -76,7 +76,7 @@ type UnhidePostServiceInput = {
 type UpdatePostServiceInput = {
   postId: string;
   viewerUserId: string;
-  data: CreatePostInput;
+  data: UpdatePostInput;
 };
 
 type GetProfilePostsInput = {

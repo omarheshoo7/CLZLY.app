@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import type { CreatePostInput, DeletePostParams, ProfilePostsQuery } from "../schemas/post.schema";
+import type { CreatePostInput, DeletePostParams, ProfilePostsQuery, UpdatePostInput } from "../schemas/post.schema";
 import type { UserProfileParams } from "../schemas/user.schema";
 import { createPost, deletePost, getPostById, getProfilePosts, hidePost, likePost, savePost, unhidePost, unlikePost, unsavePost, updatePost } from "../services/post.service";
 import { AppError } from "../utils/errors";
@@ -224,7 +224,7 @@ export async function updatePostHandler(req: Request, res: Response, next: NextF
     const post = await updatePost({
       postId: (req.params as DeletePostParams).postId,
       viewerUserId: req.user.userId,
-      data: req.body as CreatePostInput
+      data: req.body as UpdatePostInput
     });
 
     res.status(200).json({

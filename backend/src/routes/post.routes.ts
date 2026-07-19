@@ -8,7 +8,8 @@ import {
   createPostSchema,
   deleteCommentParamsSchema,
   deletePostParamsSchema,
-  listPostCommentsQuerySchema
+  listPostCommentsQuerySchema,
+  updatePostSchema
 } from "../schemas/post.schema";
 
 const router = Router();
@@ -83,7 +84,7 @@ router.patch(
   authMiddleware,
   validateRequest({
     params: deletePostParamsSchema,
-    body: createPostSchema
+    body: updatePostSchema
   }),
   updatePostHandler
 );

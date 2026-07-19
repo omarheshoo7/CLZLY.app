@@ -12,6 +12,7 @@ import {
   getPostCommentsApi,
   likePostApi,
   unlikePostApi,
+  updatePostApi,
   type FeedPagination,
   type FeedPost,
   type PostComment,
@@ -68,6 +69,10 @@ export function FeedPlaceholderPage({ section }: FeedPlaceholderPageProps) {
   const [loadMoreCommentsErrorByPostId, setLoadMoreCommentsErrorByPostId] = useState<Record<string, string | undefined>>({});
   const [pendingDeletePostId, setPendingDeletePostId] = useState<string | null>(null);
   const [deletePostErrorById, setDeletePostErrorById] = useState<Record<string, string | undefined>>({});
+  const [editingPostId, setEditingPostId] = useState<string | null>(null);
+  const [editPostDraftById, setEditPostDraftById] = useState<Record<string, string | undefined>>({});
+  const [pendingEditPostId, setPendingEditPostId] = useState<string | null>(null);
+  const [editPostErrorById, setEditPostErrorById] = useState<Record<string, string | undefined>>({});
   const [pendingDeleteCommentId, setPendingDeleteCommentId] = useState<string | null>(null);
   const [deleteCommentErrorByCommentId, setDeleteCommentErrorByCommentId] = useState<Record<string, string | undefined>>({});
 
@@ -318,6 +323,11 @@ export function FeedPlaceholderPage({ section }: FeedPlaceholderPageProps) {
       setCommentsErrorByPostId((currentErrors) => removeRecordEntry(currentErrors, postId));
       setLoadMoreCommentsErrorByPostId((currentErrors) => removeRecordEntry(currentErrors, postId));
       setDeletePostErrorById((currentErrors) => removeRecordEntry(currentErrors, postId));
+      setEditPostDraftById((currentDrafts) => removeRecordEntry(currentDrafts, postId));
+      setEditPostErrorById((currentErrors) => removeRecordEntry(currentErrors, postId));
+      setEditingPostId((currentEditingPostId) =>
+        currentEditingPostId === postId ? null : currentEditingPostId
+      );
     } catch {
       setDeletePostErrorById((currentErrors) => ({
         ...currentErrors,
@@ -325,6 +335,111 @@ export function FeedPlaceholderPage({ section }: FeedPlaceholderPageProps) {
       }));
     } finally {
       setPendingDeletePostId(null);
+    }
+  }
+
+  function handleStartEditPost(post: FeedPost) {
+    setEditingPostId(post.id);
+    setEditPostDraftById((currentDrafts) => ({
+      ...currentDrafts,
+      [post.id]: post.content
+    }));
+    setEditPostErrorById((currentErrors) => ({
+      ...currentErrors,
+      [post.id]: undefined
+    }));
+  }
+
+  function handleCancelEditPost(postId: string) {
+    setEditingPostId((currentEditingPostId) =>
+      currentEditingPostId === postId ? null : currentEditingPostId
+    );
+    setEditPostDraftById((currentDrafts) => removeRecordEntry(currentDrafts, postId));
+    setEditPostErrorById((currentErrors) => removeRecordEntry(currentErrors, postId));
+  }
+
+  function handleEditPostDraftChange(postId: string, value: string) {
+    setEditPostDraftById((currentDrafts) => ({
+      ...currentDrafts,
+      [postId]: value
+    }));
+    setEditPostErrorById((currentErrors) => ({
+      ...currentErrors,
+      [postId]: undefined
+    }));
+  }
+
+  async function handleSaveEditPost(postId: string) {
+    if (!accessToken || pendingEditPostId) {
+      return;
+    }
+
+    const currentPost = posts.find((post) => post.id === postId);
+
+    if (!currentPost) {
+      return;
+    }
+
+    const rawDraft = editPostDraftById[postId] ?? "";
+    const trimmedDraft = rawDraft.trim();
+
+    if (!trimmedDraft) {
+      setEditPostErrorById((currentErrors) => ({
+        ...currentErrors,
+        [postId]: "Post content is required."
+      }));
+      return;
+    }
+
+    if (trimmedDraft === currentPost.content.trim()) {
+      return;
+    }
+
+    if (rawDraft.length > 2000) {
+      setEditPostErrorById((currentErrors) => ({
+        ...currentErrors,
+        [postId]: "Post content must be 2000 characters or less."
+      }));
+      return;
+    }
+
+    setPendingEditPostId(postId);
+    setEditPostErrorById((currentErrors) => ({
+      ...currentErrors,
+      [postId]: undefined
+    }));
+
+    try {
+      const response = await updatePostApi({
+        accessToken,
+        postId,
+        content: trimmedDraft
+      });
+
+      setPosts((currentPosts) =>
+        currentPosts.map((currentPost) =>
+          currentPost.id === postId
+            ? {
+                ...currentPost,
+                ...response.data.post,
+                likesCount: currentPost.likesCount,
+                likedByMe: currentPost.likedByMe,
+                commentsCount: currentPost.commentsCount
+              }
+            : currentPost
+        )
+      );
+
+      setEditingPostId(null);
+      setEditPostDraftById((currentDrafts) => removeRecordEntry(currentDrafts, postId));
+      setEditPostErrorById((currentErrors) => removeRecordEntry(currentErrors, postId));
+    } catch {
+      setEditPostErrorById((currentErrors) => ({
+        ...currentErrors,
+        [postId]: "Could not update post."
+      }));
+    } finally {
+      setPendingEditPostId(null);
     }
   }
 
@@ -713,9 +828,17 @@ export function FeedPlaceholderPage({ section }: FeedPlaceholderPageProps) {
               currentUserId={user?.id ?? null}
               pendingDeletePostId={pendingDeletePostId}
               deletePostError={deletePostErrorById[post.id] ?? null}
+              isEditingPost={editingPostId === post.id}
+              editPostDraft={editPostDraftById[post.id] ?? post.content}
+              isEditPending={pendingEditPostId === post.id}
+              editPostError={editPostErrorById[post.id] ?? null}
               pendingDeleteCommentId={pendingDeleteCommentId}
               deleteCommentErrorByCommentId={deleteCommentErrorByCommentId}
               onDeletePost={handleDeletePost}
+              onStartEditPost={handleStartEditPost}
+              onCancelEditPost={handleCancelEditPost}
+              onEditPostDraftChange={handleEditPostDraftChange}
+              onSaveEditPost={handleSaveEditPost}
               onToggleComments={handleToggleComments}
               onLoadMoreComments={handleLoadMoreComments}
               onDeleteComment={handleDeleteComment}
