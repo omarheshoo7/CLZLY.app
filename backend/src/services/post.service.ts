@@ -31,6 +31,7 @@ type PostWithMetadata = BasePost & {
   likesCount: number;
   likedByMe: boolean;
   commentsCount: number;
+  savedByMe: boolean;
 };
 
 type CreatePostServiceInput = {
@@ -175,8 +176,19 @@ export async function addPostMetadataToPosts({
 
   const postIds = posts.map((post) => post.id);
 
-  const [viewerLikes, likeGroups, commentGroups] = await Promise.all([
+  const [viewerLikes, viewerSavedPosts, likeGroups, commentGroups] = await Promise.all([
     prisma.postLike.findMany({
+      where: {
+        userId: viewerUserId,
+        postId: {
+          in: postIds
+        }
+      },
+      select: {
+        postId: true
+      }
+    }),
+    prisma.savedPost.findMany({
       where: {
         userId: viewerUserId,
         postId: {
@@ -216,6 +228,7 @@ export async function addPostMetadataToPosts({
   ]);
 
   const likedPostIds = new Set(viewerLikes.map((like) => like.postId));
+  const savedPostIds = new Set(viewerSavedPosts.map((savedPost) => savedPost.postId));
   const likeCountByPostId = new Map(
     likeGroups.map((group) => [group.postId, group._count.postId])
   );
@@ -227,7 +240,8 @@ export async function addPostMetadataToPosts({
     ...post,
     likesCount: likeCountByPostId.get(post.id) ?? 0,
     likedByMe: likedPostIds.has(post.id),
-    commentsCount: commentCountByPostId.get(post.id) ?? 0
+    commentsCount: commentCountByPostId.get(post.id) ?? 0,
+    savedByMe: savedPostIds.has(post.id)
   }));
 }
 

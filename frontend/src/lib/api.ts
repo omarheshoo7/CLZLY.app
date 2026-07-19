@@ -61,6 +61,7 @@ export type FeedPost = {
   likesCount: number;
   likedByMe: boolean;
   commentsCount: number;
+  savedByMe: boolean;
 };
 
 export type FeedPagination = {
@@ -306,6 +307,20 @@ export async function likePostApi(accessToken: string, postId: string) {
 
 export async function unlikePostApi(accessToken: string, postId: string) {
   return apiRequest<PostActionData>(`/posts/${postId}/like`, {
+    method: "DELETE",
+    token: accessToken
+  });
+}
+
+export async function savePostApi(accessToken: string, postId: string) {
+  return apiRequest<PostActionData>(`/posts/${postId}/save`, {
+    method: "POST",
+    token: accessToken
+  });
+}
+
+export async function unsavePostApi(accessToken: string, postId: string) {
+  return apiRequest<PostActionData>(`/posts/${postId}/save`, {
     method: "DELETE",
     token: accessToken
   });

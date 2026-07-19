@@ -585,6 +585,7 @@ export async function getSavedPosts({ userId, query }: GetSavedPostsInput) {
         likesCount: postWithMetadata.likesCount,
         likedByMe: postWithMetadata.likedByMe,
         commentsCount: postWithMetadata.commentsCount,
+        savedByMe: postWithMetadata.savedByMe,
         savedAt: savedPostRow.createdAt
       };
     }),
@@ -750,6 +751,7 @@ export async function getHiddenPosts({ userId, query }: GetHiddenPostsInput) {
         likesCount: postWithMetadata.likesCount,
         likedByMe: postWithMetadata.likedByMe,
         commentsCount: postWithMetadata.commentsCount,
+        savedByMe: postWithMetadata.savedByMe,
         hiddenAt: hiddenPostRow.createdAt
       };
     }),

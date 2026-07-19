@@ -10,6 +10,9 @@ type PostCardProps = {
   isLikePending: boolean;
   likeErrorMessage?: string | null;
   onToggleLike: (post: FeedPost) => Promise<void> | void;
+  isSavePending: boolean;
+  savedPostError?: string | null;
+  onToggleSavedPost: (post: FeedPost) => Promise<void> | void;
   commentDraft: string;
   isCommentPending: boolean;
   commentErrorMessage?: string | null;
@@ -59,6 +62,9 @@ export function PostCard({
   isLikePending,
   likeErrorMessage,
   onToggleLike,
+  isSavePending,
+  savedPostError,
+  onToggleSavedPost,
   commentDraft,
   isCommentPending,
   commentErrorMessage,
@@ -109,6 +115,13 @@ export function PostCard({
   const heartClassName = post.likedByMe
     ? "scale-110 text-red-500"
     : "text-gray-400 group-hover:text-red-400";
+  const saveButtonLabel = isSavePending
+    ? post.savedByMe
+      ? "Unsaving..."
+      : "Saving..."
+    : post.savedByMe
+      ? "Saved"
+      : "Save";
 
   return (
     <article className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
@@ -126,29 +139,42 @@ export function PostCard({
           ) : null}
         </div>
 
-        {isOwnPost && !isEditingPost ? (
-          <div className="flex items-center gap-2">
-            <button
-              className="rounded-md px-2 py-1 text-sm font-medium text-gray-700 transition hover:bg-gray-50 hover:text-gray-950"
-              type="button"
-              onClick={() => onStartEditPost(post)}
-            >
-              Edit
-            </button>
-            <button
-              className="rounded-md px-2 py-1 text-sm font-medium text-red-700 transition hover:bg-red-50 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-60"
-              type="button"
-              disabled={isDeletePending}
-              onClick={() => void onDeletePost(post.id)}
-            >
-              {isDeletePending ? "Deleting..." : "Delete"}
-            </button>
-          </div>
-        ) : null}
+        <div className="flex items-center gap-2">
+          <button
+            className="rounded-md px-2 py-1 text-sm font-medium text-gray-700 transition hover:bg-gray-50 hover:text-gray-950 disabled:cursor-not-allowed disabled:opacity-60"
+            type="button"
+            disabled={isSavePending}
+            onClick={() => void onToggleSavedPost(post)}
+          >
+            {saveButtonLabel}
+          </button>
+          {isOwnPost && !isEditingPost ? (
+            <>
+              <button
+                className="rounded-md px-2 py-1 text-sm font-medium text-gray-700 transition hover:bg-gray-50 hover:text-gray-950"
+                type="button"
+                onClick={() => onStartEditPost(post)}
+              >
+                Edit
+              </button>
+              <button
+                className="rounded-md px-2 py-1 text-sm font-medium text-red-700 transition hover:bg-red-50 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-60"
+                type="button"
+                disabled={isDeletePending}
+                onClick={() => void onDeletePost(post.id)}
+              >
+                {isDeletePending ? "Deleting..." : "Delete"}
+              </button>
+            </>
+          ) : null}
+        </div>
       </div>
 
       {deletePostError ? (
         <p className="mt-3 text-sm text-red-700">{deletePostError}</p>
+      ) : null}
+      {savedPostError ? (
+        <p className="mt-3 text-sm text-red-700">{savedPostError}</p>
       ) : null}
 
       {isEditingPost ? (

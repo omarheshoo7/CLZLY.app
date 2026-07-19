@@ -11,7 +11,9 @@ import {
   getFeedApi,
   getPostCommentsApi,
   likePostApi,
+  savePostApi,
   unlikePostApi,
+  unsavePostApi,
   updatePostApi,
   type FeedPagination,
   type FeedPost,
@@ -54,6 +56,8 @@ export function FeedPlaceholderPage({ section }: FeedPlaceholderPageProps) {
   const [loadMoreErrorMessage, setLoadMoreErrorMessage] = useState<string | null>(null);
   const [pendingLikePostId, setPendingLikePostId] = useState<string | null>(null);
   const [likeErrorByPostId, setLikeErrorByPostId] = useState<Record<string, string | undefined>>({});
+  const [pendingSavedPostId, setPendingSavedPostId] = useState<string | null>(null);
+  const [savedPostErrorById, setSavedPostErrorById] = useState<Record<string, string | undefined>>({});
   const [commentDraftByPostId, setCommentDraftByPostId] = useState<Record<string, string | undefined>>({});
   const [pendingCommentPostId, setPendingCommentPostId] = useState<string | null>(null);
   const [commentErrorByPostId, setCommentErrorByPostId] = useState<Record<string, string | undefined>>({});
@@ -323,8 +327,12 @@ export function FeedPlaceholderPage({ section }: FeedPlaceholderPageProps) {
       setCommentsErrorByPostId((currentErrors) => removeRecordEntry(currentErrors, postId));
       setLoadMoreCommentsErrorByPostId((currentErrors) => removeRecordEntry(currentErrors, postId));
       setDeletePostErrorById((currentErrors) => removeRecordEntry(currentErrors, postId));
+      setSavedPostErrorById((currentErrors) => removeRecordEntry(currentErrors, postId));
       setEditPostDraftById((currentDrafts) => removeRecordEntry(currentDrafts, postId));
       setEditPostErrorById((currentErrors) => removeRecordEntry(currentErrors, postId));
+      setPendingSavedPostId((currentPendingPostId) =>
+        currentPendingPostId === postId ? null : currentPendingPostId
+      );
       setEditingPostId((currentEditingPostId) =>
         currentEditingPostId === postId ? null : currentEditingPostId
       );
@@ -335,6 +343,44 @@ export function FeedPlaceholderPage({ section }: FeedPlaceholderPageProps) {
       }));
     } finally {
       setPendingDeletePostId(null);
+    }
+  }
+
+  async function handleToggleSavedPost(post: FeedPost) {
+    if (!accessToken || pendingSavedPostId) {
+      return;
+    }
+
+    setPendingSavedPostId(post.id);
+    setSavedPostErrorById((currentErrors) => ({
+      ...currentErrors,
+      [post.id]: undefined
+    }));
+
+    try {
+      if (post.savedByMe) {
+        await unsavePostApi(accessToken, post.id);
+      } else {
+        await savePostApi(accessToken, post.id);
+      }
+
+      setPosts((currentPosts) =>
+        currentPosts.map((currentPost) =>
+          currentPost.id === post.id
+            ? {
+                ...currentPost,
+                savedByMe: !post.savedByMe
+              }
+            : currentPost
+        )
+      );
+    } catch {
+      setSavedPostErrorById((currentErrors) => ({
+        ...currentErrors,
+        [post.id]: "Could not update saved post."
+      }));
+    } finally {
+      setPendingSavedPostId(null);
     }
   }
 
@@ -810,6 +856,9 @@ export function FeedPlaceholderPage({ section }: FeedPlaceholderPageProps) {
               isLikePending={pendingLikePostId === post.id}
               likeErrorMessage={likeErrorByPostId[post.id] ?? null}
               onToggleLike={handleToggleLike}
+              isSavePending={pendingSavedPostId === post.id}
+              savedPostError={savedPostErrorById[post.id] ?? null}
+              onToggleSavedPost={handleToggleSavedPost}
               commentDraft={commentDraftByPostId[post.id] ?? ""}
               isCommentPending={pendingCommentPostId === post.id}
               commentErrorMessage={commentErrorByPostId[post.id] ?? null}
