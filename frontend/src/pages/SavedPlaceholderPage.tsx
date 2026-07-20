@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { PostCard } from "../components/PostCard";
 import {
+  clearSavedPostsApi,
   createCommentApi,
   deleteCommentApi,
   deletePostApi,
@@ -41,9 +42,11 @@ export function SavedPlaceholderPage() {
   const [pagination, setPagination] = useState<FeedPagination>(emptyPagination);
   const [isLoadingInitial, setIsLoadingInitial] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isClearingSavedPosts, setIsClearingSavedPosts] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loadMoreErrorMessage, setLoadMoreErrorMessage] = useState<string | null>(null);
   const [pageMessage, setPageMessage] = useState<string | null>(null);
+  const [clearSavedPostsError, setClearSavedPostsError] = useState<string | null>(null);
   const [pendingLikePostId, setPendingLikePostId] = useState<string | null>(null);
   const [likeErrorByPostId, setLikeErrorByPostId] = useState<Record<string, string | undefined>>({});
   const [pendingSavedPostId, setPendingSavedPostId] = useState<string | null>(null);
@@ -96,6 +99,39 @@ export function SavedPlaceholderPage() {
     );
   }
 
+  function clearAllSavedLocalState() {
+    setPosts([]);
+    setPagination(emptyPagination);
+    setLoadMoreErrorMessage(null);
+
+    setLikeErrorByPostId({});
+    setSavedPostErrorById({});
+    setCommentDraftByPostId({});
+    setCommentErrorByPostId({});
+    setCommentSuccessByPostId({});
+    setLatestCommentByPostId({});
+    setLatestCommentLoadingByPostId({});
+    setExpandedCommentsPostIds({});
+    setCommentsByPostId({});
+    setCommentsPaginationByPostId({});
+    setCommentsLoadingByPostId({});
+    setLoadMoreCommentsLoadingByPostId({});
+    setCommentsErrorByPostId({});
+    setLoadMoreCommentsErrorByPostId({});
+    setDeletePostErrorById({});
+    setEditPostDraftById({});
+    setEditPostErrorById({});
+    setDeleteCommentErrorByCommentId({});
+
+    setPendingLikePostId(null);
+    setPendingSavedPostId(null);
+    setPendingCommentPostId(null);
+    setPendingDeletePostId(null);
+    setPendingEditPostId(null);
+    setPendingDeleteCommentId(null);
+    setEditingPostId(null);
+  }
+
   const loadInitialSavedPosts = useCallback(async (isCurrentRequest: () => boolean = () => true) => {
     if (!accessToken) {
       if (isCurrentRequest()) {
@@ -108,6 +144,7 @@ export function SavedPlaceholderPage() {
     setErrorMessage(null);
     setLoadMoreErrorMessage(null);
     setPageMessage(null);
+    setClearSavedPostsError(null);
     setPosts([]);
     setPagination(emptyPagination);
 
@@ -247,6 +284,7 @@ export function SavedPlaceholderPage() {
     setPendingLikePostId(post.id);
     clearLikeError(post.id);
     setPageMessage(null);
+    setClearSavedPostsError(null);
 
     try {
       if (post.likedByMe) {
@@ -297,6 +335,7 @@ export function SavedPlaceholderPage() {
       [post.id]: undefined
     }));
     setPageMessage(null);
+    setClearSavedPostsError(null);
 
     try {
       if (post.savedByMe) {
@@ -346,6 +385,7 @@ export function SavedPlaceholderPage() {
       [postId]: undefined
     }));
     setPageMessage(null);
+    setClearSavedPostsError(null);
 
     try {
       await deletePostApi({
@@ -378,6 +418,7 @@ export function SavedPlaceholderPage() {
       [post.id]: undefined
     }));
     setPageMessage(null);
+    setClearSavedPostsError(null);
   }
 
   function handleCancelEditPost(postId: string) {
@@ -439,6 +480,7 @@ export function SavedPlaceholderPage() {
       [postId]: undefined
     }));
     setPageMessage(null);
+    setClearSavedPostsError(null);
 
     try {
       const response = await updatePostApi({
@@ -489,6 +531,7 @@ export function SavedPlaceholderPage() {
       [postId]: undefined
     }));
     setPageMessage(null);
+    setClearSavedPostsError(null);
   }
 
   async function handleSubmitComment(postId: string) {
@@ -767,15 +810,77 @@ export function SavedPlaceholderPage() {
   }
 
   const hasPosts = posts.length > 0;
+  const isClearSavedPostsDisabled =
+    isClearingSavedPosts ||
+    Boolean(pendingSavedPostId) ||
+    Boolean(pendingDeletePostId) ||
+    Boolean(pendingEditPostId) ||
+    Boolean(pendingCommentPostId) ||
+    Boolean(pendingDeleteCommentId) ||
+    isLoadingMore;
+  const shouldShowClearSavedPostsButton =
+    !isLoadingInitial &&
+    !errorMessage &&
+    hasPosts;
+
+  async function handleClearSavedPosts() {
+    if (
+      !accessToken ||
+      posts.length === 0 ||
+      isClearSavedPostsDisabled
+    ) {
+      return;
+    }
+
+    const shouldClear = window.confirm("Clear all saved posts? This cannot be undone.");
+
+    if (!shouldClear) {
+      return;
+    }
+
+    setIsClearingSavedPosts(true);
+    setClearSavedPostsError(null);
+    setPageMessage(null);
+
+    try {
+      await clearSavedPostsApi(accessToken);
+      clearAllSavedLocalState();
+      setClearSavedPostsError(null);
+      setPageMessage("Saved posts cleared.");
+    } catch {
+      setClearSavedPostsError("Could not clear saved posts.");
+    } finally {
+      setIsClearingSavedPosts(false);
+    }
+  }
 
   return (
     <section className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-950">Saved</h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Posts you saved will appear here.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-950">Saved</h2>
+          <p className="mt-2 text-sm text-gray-600">
+            Posts you saved will appear here.
+          </p>
+        </div>
+
+        {shouldShowClearSavedPostsButton ? (
+          <button
+            className="rounded-md border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-50 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-60"
+            type="button"
+            disabled={isClearSavedPostsDisabled}
+            onClick={() => void handleClearSavedPosts()}
+          >
+            {isClearingSavedPosts ? "Clearing..." : "Clear all saved posts"}
+          </button>
+        ) : null}
       </div>
+
+      {clearSavedPostsError ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-800 shadow-sm">
+          {clearSavedPostsError}
+        </div>
+      ) : null}
 
       {pageMessage ? (
         <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm font-medium text-green-800 shadow-sm">

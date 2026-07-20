@@ -362,6 +362,13 @@ export async function unsavePostApi(accessToken: string, postId: string) {
   });
 }
 
+export async function clearSavedPostsApi(accessToken: string) {
+  return apiRequest<{ message: string }>("/users/me/saved-posts", {
+    method: "DELETE",
+    token: accessToken
+  });
+}
+
 export async function deletePostApi({
   accessToken,
   postId
