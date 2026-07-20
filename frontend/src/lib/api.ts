@@ -74,6 +74,15 @@ export type FeedData = {
   pagination: FeedPagination;
 };
 
+export type SavedFeedPost = FeedPost & {
+  savedAt: string;
+};
+
+export type SavedPostsData = {
+  posts: SavedFeedPost[];
+  pagination: FeedPagination;
+};
+
 export type CreatedPost = {
   id: string;
   authorId: string;
@@ -267,6 +276,33 @@ export async function getFeedApi(
   return apiRequest<FeedData>(`/feed${queryString ? `?${queryString}` : ""}`, {
     token: accessToken
   });
+}
+
+export async function getSavedPostsApi(
+  accessToken: string,
+  params?: {
+    limit?: number;
+    cursor?: string | null;
+  }
+) {
+  const searchParams = new URLSearchParams();
+
+  if (params?.limit !== undefined) {
+    searchParams.set("limit", String(params.limit));
+  }
+
+  if (params?.cursor) {
+    searchParams.set("cursor", params.cursor);
+  }
+
+  const queryString = searchParams.toString();
+
+  return apiRequest<SavedPostsData>(
+    `/users/me/saved-posts${queryString ? `?${queryString}` : ""}`,
+    {
+      token: accessToken
+    }
+  );
 }
 
 export async function createPostApi(
