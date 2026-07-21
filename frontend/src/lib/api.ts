@@ -108,6 +108,23 @@ export type FollowUserData = {
   follow: FollowRecord;
 };
 
+export type UserFollowStatus = "SELF" | "FOLLOWING" | "REQUESTED" | "NONE";
+
+export type SearchUser = {
+  id: string;
+  username: string;
+  displayName: string | null;
+  bio: string | null;
+  profilePictureUrl: string | null;
+  isPrivate: boolean;
+  createdAt: string;
+  followStatus: UserFollowStatus;
+};
+
+export type SearchUsersData = {
+  users: SearchUser[];
+};
+
 export type CreatedPost = {
   id: string;
   authorId: string;
@@ -275,6 +292,15 @@ export async function logoutApi() {
 export async function getCurrentUserApi(token: string) {
   return apiRequest<CurrentUserData>("/auth/me", {
     token
+  });
+}
+
+export async function searchUsersApi(accessToken: string, q: string) {
+  const params = new URLSearchParams({ q });
+
+  return apiRequest<SearchUsersData>(`/users/search?${params.toString()}`, {
+    method: "GET",
+    token: accessToken
   });
 }
 

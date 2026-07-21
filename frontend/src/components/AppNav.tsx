@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 
 const navItems = [
   { label: "Feed", to: "/app/feed" },
+  { label: "Search", to: "/app/search" },
   { label: "Profile", to: "/app/profile" },
   { label: "Saved", to: "/app/saved" },
   { label: "Hidden Posts", to: "/app/hidden-posts" }

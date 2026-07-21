@@ -299,7 +299,37 @@ export async function searchUsers({ query, searcherUserId }: SearchUsersInput) {
     users
   });
 
-  return users;
+  const userIds = users.map((user) => user.id);
+  const follows = userIds.length > 0
+    ? await prisma.follow.findMany({
+        where: {
+          followerId: searcherUserId,
+          followingId: {
+            in: userIds
+          }
+        },
+        select: {
+          followingId: true,
+          status: true
+        }
+      })
+    : [];
+  const followByUserId = new Map(follows.map((follow) => [follow.followingId, follow.status]));
+
+  return users.map((user) => {
+    const followStatus: ProfileFollowStatus = user.id === searcherUserId
+      ? "SELF"
+      : followByUserId.get(user.id) === "ACCEPTED"
+        ? "FOLLOWING"
+        : followByUserId.get(user.id) === "PENDING"
+          ? "REQUESTED"
+          : "NONE";
+
+    return {
+      ...user,
+      followStatus
+    };
+  });
 }
 
 export async function getSearchHistory({ userId }: GetSearchHistoryInput) {

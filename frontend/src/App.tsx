@@ -10,6 +10,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { ProfilePlaceholderPage } from "./pages/ProfilePlaceholderPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { SavedPlaceholderPage } from "./pages/SavedPlaceholderPage";
+import { SearchPage } from "./pages/SearchPage";
 
 function RootRedirect() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -57,6 +58,7 @@ export default function App() {
         <Route path="feed/resources" element={<FeedPlaceholderPage section="resources" />} />
         <Route path="feed/updates" element={<FeedPlaceholderPage section="updates" />} />
         <Route path="feed/personal" element={<FeedPlaceholderPage section="personal" />} />
+        <Route path="search" element={<SearchPage />} />
         <Route path="profile" element={<ProfilePlaceholderPage />} />
         <Route path="saved" element={<SavedPlaceholderPage />} />
         <Route path="hidden-posts" element={<HiddenPostsPlaceholderPage />} />
