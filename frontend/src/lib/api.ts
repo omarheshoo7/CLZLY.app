@@ -93,6 +93,21 @@ export type HiddenPostsData = {
   pagination: FeedPagination;
 };
 
+export type FollowStatus = "PENDING" | "ACCEPTED";
+
+export type FollowRecord = {
+  id: string;
+  followerId: string;
+  followingId: string;
+  status: FollowStatus;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type FollowUserData = {
+  follow: FollowRecord;
+};
+
 export type CreatedPost = {
   id: string;
   authorId: string;
@@ -413,6 +428,26 @@ export async function unhidePostApi(accessToken: string, postId: string) {
     method: "DELETE",
     token: accessToken
   });
+}
+
+export async function followUserApi(accessToken: string, username: string) {
+  return apiRequest<FollowUserData>(
+    `/users/${encodeURIComponent(username)}/follow`,
+    {
+      method: "POST",
+      token: accessToken
+    }
+  );
+}
+
+export async function unfollowUserApi(accessToken: string, username: string) {
+  return apiRequest<{ message: string }>(
+    `/users/${encodeURIComponent(username)}/follow`,
+    {
+      method: "DELETE",
+      token: accessToken
+    }
+  );
 }
 
 export async function deletePostApi({
