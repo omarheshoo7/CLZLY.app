@@ -3,12 +3,15 @@ import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { PostCard } from "../components/PostCard";
 import {
+  ApiError,
   createCommentApi,
   deleteCommentApi,
   deletePostApi,
   followUserApi,
   getPostCommentsApi,
   getProfilePostsApi,
+  getUserFollowersApi,
+  getUserFollowingApi,
   getUserProfileApi,
   hidePostApi,
   likePostApi,
@@ -22,18 +25,27 @@ import {
   type FollowStatus,
   type PostComment,
   type PostCommentsPagination,
+  type SocialGraphPagination,
+  type SocialGraphUser,
   type UserFollowStatus,
   type UserProfile,
   type UserProfileData
 } from "../lib/api";
 
 const PROFILE_POSTS_PAGE_SIZE = 20;
+const SOCIAL_GRAPH_PAGE_SIZE = 20;
 const COMMENTS_PAGE_SIZE = 20;
 const LATEST_COMMENT_PREVIEW_LIMIT = 1;
 const emptyPostsPagination: FeedPagination = {
   nextCursor: null,
   hasMore: false
 };
+const emptySocialGraphPagination: SocialGraphPagination = {
+  nextCursor: null,
+  hasMore: false
+};
+
+type SocialGraphTab = "followers" | "following";
 
 function formatSuccessMessage(message: string | undefined, fallback: string) {
   const nextMessage = message ?? fallback;
@@ -47,6 +59,14 @@ function getDisplayName(user: UserProfile) {
 
 function getFallbackLetter(user: UserProfile) {
   return getDisplayName(user).charAt(0).toUpperCase() || "?";
+}
+
+function getSocialGraphDisplayName(user: SocialGraphUser) {
+  return user.displayName?.trim() || user.username;
+}
+
+function getSocialGraphFallbackLetter(user: SocialGraphUser) {
+  return user.username.charAt(0).toUpperCase() || "?";
 }
 
 function getFollowSuccessFallback(status: FollowStatus) {
@@ -76,6 +96,16 @@ export function UserProfilePage() {
   const [postsErrorMessage, setPostsErrorMessage] = useState<string | null>(null);
   const [loadMorePostsErrorMessage, setLoadMorePostsErrorMessage] = useState<string | null>(null);
   const [postActionMessage, setPostActionMessage] = useState<string | null>(null);
+  const [activeSocialGraphTab, setActiveSocialGraphTab] = useState<SocialGraphTab>("followers");
+  const [socialGraphUsers, setSocialGraphUsers] = useState<SocialGraphUser[]>([]);
+  const [socialGraphPagination, setSocialGraphPagination] =
+    useState<SocialGraphPagination>(emptySocialGraphPagination);
+  const [isSocialGraphLoading, setIsSocialGraphLoading] = useState(false);
+  const [isLoadingMoreSocialGraph, setIsLoadingMoreSocialGraph] = useState(false);
+  const [socialGraphErrorMessage, setSocialGraphErrorMessage] = useState<string | null>(null);
+  const [loadMoreSocialGraphErrorMessage, setLoadMoreSocialGraphErrorMessage] =
+    useState<string | null>(null);
+  const [isSocialGraphPrivate, setIsSocialGraphPrivate] = useState(false);
   const [pendingLikePostId, setPendingLikePostId] = useState<string | null>(null);
   const [likeErrorByPostId, setLikeErrorByPostId] = useState<Record<string, string | undefined>>({});
   const [pendingSavedPostId, setPendingSavedPostId] = useState<string | null>(null);
@@ -105,6 +135,7 @@ export function UserProfilePage() {
   const [deleteCommentErrorByCommentId, setDeleteCommentErrorByCommentId] = useState<Record<string, string | undefined>>({});
   const currentProfileUsernameRef = useRef<string | null>(null);
   const currentRouteUsernameRef = useRef<string | null>(null);
+  const activeSocialGraphTabRef = useRef<SocialGraphTab>("followers");
 
   currentRouteUsernameRef.current = username ?? null;
 
@@ -153,6 +184,10 @@ export function UserProfilePage() {
   useEffect(() => {
     currentProfileUsernameRef.current = profile?.user.username ?? null;
   }, [profile?.user.username]);
+
+  useEffect(() => {
+    activeSocialGraphTabRef.current = activeSocialGraphTab;
+  }, [activeSocialGraphTab]);
 
   useEffect(() => {
     let isCurrentRequest = true;
@@ -206,6 +241,99 @@ export function UserProfilePage() {
       isCurrentRequest = false;
     };
   }, [accessToken, profile?.canViewPosts, profile?.user.username]);
+
+  useEffect(() => {
+    let isCurrentRequest = true;
+
+    async function loadSocialGraph() {
+      setSocialGraphUsers([]);
+      setSocialGraphPagination(emptySocialGraphPagination);
+      setSocialGraphErrorMessage(null);
+      setLoadMoreSocialGraphErrorMessage(null);
+      setIsSocialGraphPrivate(false);
+
+      if (!accessToken || !profile || !profile.user.username) {
+        setIsSocialGraphLoading(false);
+        return;
+      }
+
+      if (!profile.canViewPosts) {
+        setIsSocialGraphPrivate(true);
+        setIsSocialGraphLoading(false);
+        return;
+      }
+
+      const targetUsername = profile.user.username;
+      const targetTab = activeSocialGraphTab;
+
+      setIsSocialGraphLoading(true);
+
+      try {
+        const response = targetTab === "followers"
+          ? await getUserFollowersApi(accessToken, targetUsername, {
+              limit: SOCIAL_GRAPH_PAGE_SIZE
+            })
+          : await getUserFollowingApi(accessToken, targetUsername, {
+              limit: SOCIAL_GRAPH_PAGE_SIZE
+            });
+
+        if (
+          !isCurrentRequest ||
+          currentProfileUsernameRef.current !== targetUsername ||
+          activeSocialGraphTabRef.current !== targetTab
+        ) {
+          return;
+        }
+
+        const nextUsers = "followers" in response.data
+          ? response.data.followers
+          : response.data.following;
+
+        setSocialGraphUsers(nextUsers);
+        setSocialGraphPagination(response.data.pagination);
+        setSocialGraphErrorMessage(null);
+        setLoadMoreSocialGraphErrorMessage(null);
+        setIsSocialGraphPrivate(false);
+      } catch (error) {
+        if (
+          !isCurrentRequest ||
+          currentProfileUsernameRef.current !== targetUsername ||
+          activeSocialGraphTabRef.current !== targetTab
+        ) {
+          return;
+        }
+
+        if (error instanceof ApiError && error.statusCode === 403) {
+          setIsSocialGraphPrivate(true);
+          setSocialGraphErrorMessage(null);
+        } else {
+          setSocialGraphErrorMessage(
+            targetTab === "followers"
+              ? "Could not load followers."
+              : "Could not load following."
+          );
+        }
+
+        setSocialGraphUsers([]);
+        setSocialGraphPagination(emptySocialGraphPagination);
+        setLoadMoreSocialGraphErrorMessage(null);
+      } finally {
+        if (
+          isCurrentRequest &&
+          currentProfileUsernameRef.current === profile.user.username &&
+          activeSocialGraphTabRef.current === activeSocialGraphTab
+        ) {
+          setIsSocialGraphLoading(false);
+        }
+      }
+    }
+
+    void loadSocialGraph();
+
+    return () => {
+      isCurrentRequest = false;
+    };
+  }, [accessToken, activeSocialGraphTab, profile?.canViewPosts, profile?.user.username]);
 
   useEffect(() => {
     if (!accessToken || posts.length === 0) {
@@ -344,6 +472,76 @@ export function UserProfilePage() {
       currentPosts.filter((currentPost) => currentPost.id !== postId)
     );
     clearPostLocalState(postId);
+  }
+
+  async function handleLoadMoreSocialGraph() {
+    if (
+      !accessToken ||
+      !profile ||
+      !socialGraphPagination.nextCursor ||
+      isLoadingMoreSocialGraph ||
+      isSocialGraphPrivate
+    ) {
+      return;
+    }
+
+    const targetUsername = profile.user.username;
+    const targetTab = activeSocialGraphTab;
+
+    setIsLoadingMoreSocialGraph(true);
+    setLoadMoreSocialGraphErrorMessage(null);
+
+    try {
+      const response = targetTab === "followers"
+        ? await getUserFollowersApi(accessToken, targetUsername, {
+            limit: SOCIAL_GRAPH_PAGE_SIZE,
+            cursor: socialGraphPagination.nextCursor
+          })
+        : await getUserFollowingApi(accessToken, targetUsername, {
+            limit: SOCIAL_GRAPH_PAGE_SIZE,
+            cursor: socialGraphPagination.nextCursor
+          });
+
+      if (
+        currentProfileUsernameRef.current !== targetUsername ||
+        activeSocialGraphTabRef.current !== targetTab
+      ) {
+        return;
+      }
+
+      const nextUsers = "followers" in response.data
+        ? response.data.followers
+        : response.data.following;
+
+      setSocialGraphUsers((currentUsers) => [...currentUsers, ...nextUsers]);
+      setSocialGraphPagination(response.data.pagination);
+      setLoadMoreSocialGraphErrorMessage(null);
+    } catch (error) {
+      if (
+        currentProfileUsernameRef.current !== targetUsername ||
+        activeSocialGraphTabRef.current !== targetTab
+      ) {
+        return;
+      }
+
+      if (error instanceof ApiError && error.statusCode === 403) {
+        setIsSocialGraphPrivate(true);
+        setLoadMoreSocialGraphErrorMessage(null);
+      } else {
+        setLoadMoreSocialGraphErrorMessage(
+          targetTab === "followers"
+            ? "Could not load followers."
+            : "Could not load following."
+        );
+      }
+    } finally {
+      if (
+        currentProfileUsernameRef.current === targetUsername &&
+        activeSocialGraphTabRef.current === targetTab
+      ) {
+        setIsLoadingMoreSocialGraph(false);
+      }
+    }
   }
 
   async function handleLoadMorePosts() {
@@ -1034,6 +1232,135 @@ export function UserProfilePage() {
     );
   }
 
+  function renderConnectionsSection() {
+    if (!profile) {
+      return null;
+    }
+
+    const isFollowersTab = activeSocialGraphTab === "followers";
+    const loadingMessage = isFollowersTab ? "Loading followers..." : "Loading following...";
+    const emptyMessage = isFollowersTab ? "No followers yet." : "Not following anyone yet.";
+
+    return (
+      <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-xl font-semibold text-gray-950">Connections</h2>
+            <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1">
+              <button
+                className={`rounded-md px-3 py-1.5 text-sm font-semibold transition ${
+                  isFollowersTab
+                    ? "bg-white text-gray-950 shadow-sm"
+                    : "text-gray-600 hover:text-gray-950"
+                }`}
+                type="button"
+                onClick={() => setActiveSocialGraphTab("followers")}
+              >
+                Followers
+              </button>
+              <button
+                className={`rounded-md px-3 py-1.5 text-sm font-semibold transition ${
+                  !isFollowersTab
+                    ? "bg-white text-gray-950 shadow-sm"
+                    : "text-gray-600 hover:text-gray-950"
+                }`}
+                type="button"
+                onClick={() => setActiveSocialGraphTab("following")}
+              >
+                Following
+              </button>
+            </div>
+          </div>
+
+          {isSocialGraphPrivate ? (
+            <p className="text-sm text-gray-600">
+              This profile&apos;s connections are private.
+            </p>
+          ) : null}
+
+          {!isSocialGraphPrivate && isSocialGraphLoading ? (
+            <p className="text-sm text-gray-600">{loadingMessage}</p>
+          ) : null}
+
+          {!isSocialGraphPrivate && !isSocialGraphLoading && socialGraphErrorMessage ? (
+            <p className="text-sm text-red-700">{socialGraphErrorMessage}</p>
+          ) : null}
+
+          {!isSocialGraphPrivate &&
+          !isSocialGraphLoading &&
+          !socialGraphErrorMessage &&
+          socialGraphUsers.length === 0 ? (
+            <p className="text-sm text-gray-600">{emptyMessage}</p>
+          ) : null}
+
+          {!isSocialGraphPrivate && socialGraphUsers.length > 0 ? (
+            <div className="divide-y divide-gray-200">
+              {socialGraphUsers.map((socialGraphUser) => {
+                const socialGraphDisplayName = getSocialGraphDisplayName(socialGraphUser);
+
+                return (
+                  <div className="py-4 first:pt-0 last:pb-0" key={socialGraphUser.id}>
+                    <Link
+                      className="flex min-w-0 gap-4 rounded-md outline-none transition hover:bg-gray-50 focus:ring-2 focus:ring-gray-200"
+                      to={`/app/users/${encodeURIComponent(socialGraphUser.username)}`}
+                    >
+                      {socialGraphUser.profilePictureUrl ? (
+                        <img
+                          className="h-12 w-12 flex-none rounded-full border border-gray-200 object-cover"
+                          src={socialGraphUser.profilePictureUrl}
+                          alt={`${socialGraphDisplayName} profile`}
+                        />
+                      ) : (
+                        <div className="flex h-12 w-12 flex-none items-center justify-center rounded-full border border-gray-200 bg-gray-100 text-base font-semibold text-gray-700">
+                          {getSocialGraphFallbackLetter(socialGraphUser)}
+                        </div>
+                      )}
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="break-words text-sm font-semibold text-gray-950">
+                            {socialGraphDisplayName}
+                          </h3>
+                          <span className="rounded-full border border-gray-200 px-2 py-0.5 text-xs font-medium text-gray-600">
+                            {socialGraphUser.isPrivate ? "Private" : "Public"}
+                          </span>
+                        </div>
+                        <p className="mt-1 break-words text-sm text-gray-600">
+                          @{socialGraphUser.username}
+                        </p>
+                        {socialGraphUser.bio ? (
+                          <p className="mt-2 whitespace-pre-wrap break-words text-sm text-gray-700">
+                            {socialGraphUser.bio}
+                          </p>
+                        ) : null}
+                      </div>
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+
+          {!isSocialGraphPrivate && !isSocialGraphLoading && socialGraphPagination.hasMore ? (
+            <div className="flex flex-col items-center gap-3">
+              {loadMoreSocialGraphErrorMessage ? (
+                <p className="text-sm text-red-700">{loadMoreSocialGraphErrorMessage}</p>
+              ) : null}
+              <button
+                className="rounded-md bg-gray-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
+                type="button"
+                onClick={() => void handleLoadMoreSocialGraph()}
+                disabled={isLoadingMoreSocialGraph}
+              >
+                {isLoadingMoreSocialGraph ? "Loading..." : "Load More"}
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </section>
+    );
+  }
+
   function renderPostsSection() {
     if (!profile) {
       return null;
@@ -1228,6 +1555,8 @@ export function UserProfilePage() {
               {errorMessage}
             </div>
           ) : null}
+
+          {renderConnectionsSection()}
 
           {renderPostsSection()}
         </>

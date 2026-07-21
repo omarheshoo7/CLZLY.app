@@ -151,6 +151,36 @@ export type GetProfilePostsParams = {
   cursor?: string;
 };
 
+export type SocialGraphUser = {
+  id: string;
+  username: string;
+  displayName: string | null;
+  bio: string | null;
+  profilePictureUrl: string | null;
+  isPrivate: boolean;
+  createdAt: string;
+};
+
+export type SocialGraphPagination = {
+  nextCursor: string | null;
+  hasMore: boolean;
+};
+
+export type UserFollowersData = {
+  followers: SocialGraphUser[];
+  pagination: SocialGraphPagination;
+};
+
+export type UserFollowingData = {
+  following: SocialGraphUser[];
+  pagination: SocialGraphPagination;
+};
+
+export type GetSocialGraphParams = {
+  limit?: number;
+  cursor?: string;
+};
+
 export type CreatedPost = {
   id: string;
   authorId: string;
@@ -359,6 +389,58 @@ export async function getProfilePostsApi(
 
   return apiRequest<ProfilePostsData>(
     `/users/${encodeURIComponent(username)}/posts${queryString ? `?${queryString}` : ""}`,
+    {
+      method: "GET",
+      token: accessToken
+    }
+  );
+}
+
+export async function getUserFollowersApi(
+  accessToken: string,
+  username: string,
+  params?: GetSocialGraphParams
+) {
+  const searchParams = new URLSearchParams();
+
+  if (params?.limit) {
+    searchParams.set("limit", String(params.limit));
+  }
+
+  if (params?.cursor) {
+    searchParams.set("cursor", params.cursor);
+  }
+
+  const queryString = searchParams.toString();
+
+  return apiRequest<UserFollowersData>(
+    `/users/${encodeURIComponent(username)}/followers${queryString ? `?${queryString}` : ""}`,
+    {
+      method: "GET",
+      token: accessToken
+    }
+  );
+}
+
+export async function getUserFollowingApi(
+  accessToken: string,
+  username: string,
+  params?: GetSocialGraphParams
+) {
+  const searchParams = new URLSearchParams();
+
+  if (params?.limit) {
+    searchParams.set("limit", String(params.limit));
+  }
+
+  if (params?.cursor) {
+    searchParams.set("cursor", params.cursor);
+  }
+
+  const queryString = searchParams.toString();
+
+  return apiRequest<UserFollowingData>(
+    `/users/${encodeURIComponent(username)}/following${queryString ? `?${queryString}` : ""}`,
     {
       method: "GET",
       token: accessToken
