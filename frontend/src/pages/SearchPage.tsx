@@ -1,5 +1,6 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import {
   followUserApi,
@@ -271,35 +272,52 @@ export function SearchPage() {
                 key={user.id}
               >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="flex min-w-0 gap-4">
-                    {user.profilePictureUrl ? (
-                      <img
-                        className="h-14 w-14 flex-none rounded-full border border-gray-200 object-cover"
-                        src={user.profilePictureUrl}
-                        alt={`${displayName} profile`}
-                      />
-                    ) : (
-                      <div className="flex h-14 w-14 flex-none items-center justify-center rounded-full border border-gray-200 bg-gray-100 text-lg font-semibold text-gray-700">
-                        {getFallbackLetter(user)}
-                      </div>
-                    )}
+                  <div className="min-w-0">
+                    <div className="flex min-w-0 gap-4">
+                      <Link
+                        className="flex-none rounded-full outline-none transition focus:ring-2 focus:ring-gray-200"
+                        to={`/app/users/${encodeURIComponent(user.username)}`}
+                      >
+                        {user.profilePictureUrl ? (
+                          <img
+                            className="h-14 w-14 rounded-full border border-gray-200 object-cover"
+                            src={user.profilePictureUrl}
+                            alt={`${displayName} profile`}
+                          />
+                        ) : (
+                          <div className="flex h-14 w-14 items-center justify-center rounded-full border border-gray-200 bg-gray-100 text-lg font-semibold text-gray-700">
+                            {getFallbackLetter(user)}
+                          </div>
+                        )}
+                      </Link>
 
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="break-words text-lg font-semibold text-gray-950">
-                          {displayName}
-                        </h2>
-                        <span className="rounded-full border border-gray-200 px-2 py-0.5 text-xs font-medium text-gray-600">
-                          {user.isPrivate ? "Private" : "Public"}
-                        </span>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Link
+                            className="rounded-md outline-none transition hover:text-gray-700 focus:ring-2 focus:ring-gray-200"
+                            to={`/app/users/${encodeURIComponent(user.username)}`}
+                          >
+                            <h2 className="break-words text-lg font-semibold text-gray-950">
+                              {displayName}
+                            </h2>
+                          </Link>
+                          <span className="rounded-full border border-gray-200 px-2 py-0.5 text-xs font-medium text-gray-600">
+                            {user.isPrivate ? "Private" : "Public"}
+                          </span>
+                        </div>
+                        <Link
+                          className="mt-1 block rounded-md text-sm text-gray-600 outline-none transition hover:text-gray-950 focus:ring-2 focus:ring-gray-200"
+                          to={`/app/users/${encodeURIComponent(user.username)}`}
+                        >
+                          @{user.username}
+                        </Link>
                       </div>
-                      <p className="mt-1 break-words text-sm text-gray-600">@{user.username}</p>
-                      {user.bio ? (
-                        <p className="mt-3 whitespace-pre-wrap break-words text-sm text-gray-700">
-                          {user.bio}
-                        </p>
-                      ) : null}
                     </div>
+                    {user.bio ? (
+                      <p className="mt-3 whitespace-pre-wrap break-words text-sm text-gray-700 sm:ml-[4.5rem]">
+                        {user.bio}
+                      </p>
+                    ) : null}
                   </div>
 
                   <div className="flex flex-none sm:justify-end">

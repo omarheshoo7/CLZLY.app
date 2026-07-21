@@ -125,6 +125,22 @@ export type SearchUsersData = {
   users: SearchUser[];
 };
 
+export type UserProfile = {
+  id: string;
+  username: string;
+  displayName: string | null;
+  bio: string | null;
+  profilePictureUrl: string | null;
+  isPrivate: boolean;
+  createdAt: string;
+  followStatus: UserFollowStatus;
+};
+
+export type UserProfileData = {
+  user: UserProfile;
+  canViewPosts: boolean;
+};
+
 export type CreatedPost = {
   id: string;
   authorId: string;
@@ -302,6 +318,16 @@ export async function searchUsersApi(accessToken: string, q: string) {
     method: "GET",
     token: accessToken
   });
+}
+
+export async function getUserProfileApi(accessToken: string, username: string) {
+  return apiRequest<UserProfileData>(
+    `/users/${encodeURIComponent(username)}`,
+    {
+      method: "GET",
+      token: accessToken
+    }
+  );
 }
 
 export async function getFeedApi(
