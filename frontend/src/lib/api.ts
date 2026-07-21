@@ -83,6 +83,16 @@ export type SavedPostsData = {
   pagination: FeedPagination;
 };
 
+export type HiddenFeedPost = FeedPost & {
+  imageUrl: string | null;
+  hiddenAt: string;
+};
+
+export type HiddenPostsData = {
+  posts: HiddenFeedPost[];
+  pagination: FeedPagination;
+};
+
 export type CreatedPost = {
   id: string;
   authorId: string;
@@ -305,6 +315,28 @@ export async function getSavedPostsApi(
   );
 }
 
+export async function getHiddenPostsApi({
+  accessToken,
+  limit = 10,
+  cursor
+}: {
+  accessToken: string;
+  limit?: number;
+  cursor?: string | null;
+}) {
+  const params = new URLSearchParams({
+    limit: String(limit)
+  });
+
+  if (cursor) {
+    params.set("cursor", cursor);
+  }
+
+  return apiRequest<HiddenPostsData>(`/users/me/hidden-posts?${params.toString()}`, {
+    token: accessToken
+  });
+}
+
 export async function createPostApi(
   accessToken: string,
   payload: { content: string; type: PostType }
@@ -372,6 +404,13 @@ export async function clearSavedPostsApi(accessToken: string) {
 export async function hidePostApi(accessToken: string, postId: string) {
   return apiRequest<{ message: string }>(`/posts/${postId}/hide`, {
     method: "POST",
+    token: accessToken
+  });
+}
+
+export async function unhidePostApi(accessToken: string, postId: string) {
+  return apiRequest<{ message: string }>(`/posts/${postId}/hide`, {
+    method: "DELETE",
     token: accessToken
   });
 }
