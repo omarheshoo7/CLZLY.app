@@ -10,6 +10,7 @@ import {
   deleteCommentApi,
   getFeedApi,
   getPostCommentsApi,
+  hidePostApi,
   likePostApi,
   savePostApi,
   unlikePostApi,
@@ -54,10 +55,13 @@ export function FeedPlaceholderPage({ section }: FeedPlaceholderPageProps) {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loadMoreErrorMessage, setLoadMoreErrorMessage] = useState<string | null>(null);
+  const [pageMessage, setPageMessage] = useState<string | null>(null);
   const [pendingLikePostId, setPendingLikePostId] = useState<string | null>(null);
   const [likeErrorByPostId, setLikeErrorByPostId] = useState<Record<string, string | undefined>>({});
   const [pendingSavedPostId, setPendingSavedPostId] = useState<string | null>(null);
   const [savedPostErrorById, setSavedPostErrorById] = useState<Record<string, string | undefined>>({});
+  const [pendingHidePostId, setPendingHidePostId] = useState<string | null>(null);
+  const [hidePostErrorById, setHidePostErrorById] = useState<Record<string, string | null>>({});
   const [commentDraftByPostId, setCommentDraftByPostId] = useState<Record<string, string | undefined>>({});
   const [pendingCommentPostId, setPendingCommentPostId] = useState<string | null>(null);
   const [commentErrorByPostId, setCommentErrorByPostId] = useState<Record<string, string | undefined>>({});
@@ -91,6 +95,7 @@ export function FeedPlaceholderPage({ section }: FeedPlaceholderPageProps) {
     setIsLoadingInitial(true);
     setErrorMessage(null);
     setLoadMoreErrorMessage(null);
+    setPageMessage(null);
     setPosts([]);
     setPagination(emptyPagination);
 
@@ -133,6 +138,7 @@ export function FeedPlaceholderPage({ section }: FeedPlaceholderPageProps) {
     setPagination(response.data.pagination);
     setLoadMoreErrorMessage(null);
     setErrorMessage(null);
+    setPageMessage(null);
   }, [accessToken, activeTypes]);
 
   useEffect(() => {
@@ -241,6 +247,55 @@ export function FeedPlaceholderPage({ section }: FeedPlaceholderPageProps) {
     }));
   }
 
+  function clearPostLocalState(postId: string) {
+    setLikeErrorByPostId((currentErrors) => removeRecordEntry(currentErrors, postId));
+    setCommentDraftByPostId((currentDrafts) => removeRecordEntry(currentDrafts, postId));
+    setCommentErrorByPostId((currentErrors) => removeRecordEntry(currentErrors, postId));
+    setCommentSuccessByPostId((currentSuccesses) => removeRecordEntry(currentSuccesses, postId));
+    setLatestCommentByPostId((currentComments) => removeRecordEntry(currentComments, postId));
+    setLatestCommentLoadingByPostId((currentLoading) => removeRecordEntry(currentLoading, postId));
+    setExpandedCommentsPostIds((currentExpanded) => removeRecordEntry(currentExpanded, postId));
+    setCommentsByPostId((currentComments) => removeRecordEntry(currentComments, postId));
+    setCommentsPaginationByPostId((currentPagination) => removeRecordEntry(currentPagination, postId));
+    setCommentsLoadingByPostId((currentLoading) => removeRecordEntry(currentLoading, postId));
+    setLoadMoreCommentsLoadingByPostId((currentLoading) => removeRecordEntry(currentLoading, postId));
+    setCommentsErrorByPostId((currentErrors) => removeRecordEntry(currentErrors, postId));
+    setLoadMoreCommentsErrorByPostId((currentErrors) => removeRecordEntry(currentErrors, postId));
+    setDeletePostErrorById((currentErrors) => removeRecordEntry(currentErrors, postId));
+    setSavedPostErrorById((currentErrors) => removeRecordEntry(currentErrors, postId));
+    setHidePostErrorById((currentErrors) => removeRecordEntry(currentErrors, postId));
+    setEditPostDraftById((currentDrafts) => removeRecordEntry(currentDrafts, postId));
+    setEditPostErrorById((currentErrors) => removeRecordEntry(currentErrors, postId));
+    setPendingLikePostId((currentPendingPostId) =>
+      currentPendingPostId === postId ? null : currentPendingPostId
+    );
+    setPendingSavedPostId((currentPendingPostId) =>
+      currentPendingPostId === postId ? null : currentPendingPostId
+    );
+    setPendingCommentPostId((currentPendingPostId) =>
+      currentPendingPostId === postId ? null : currentPendingPostId
+    );
+    setPendingDeletePostId((currentPendingPostId) =>
+      currentPendingPostId === postId ? null : currentPendingPostId
+    );
+    setPendingEditPostId((currentPendingPostId) =>
+      currentPendingPostId === postId ? null : currentPendingPostId
+    );
+    setPendingHidePostId((currentPendingPostId) =>
+      currentPendingPostId === postId ? null : currentPendingPostId
+    );
+    setEditingPostId((currentEditingPostId) =>
+      currentEditingPostId === postId ? null : currentEditingPostId
+    );
+  }
+
+  function removeHiddenPostFromFeed(postId: string) {
+    setPosts((currentPosts) =>
+      currentPosts.filter((currentPost) => currentPost.id !== postId)
+    );
+    clearPostLocalState(postId);
+  }
+
   async function handleToggleLike(post: FeedPost) {
     if (!accessToken || pendingLikePostId) {
       return;
@@ -313,29 +368,7 @@ export function FeedPlaceholderPage({ section }: FeedPlaceholderPageProps) {
       setPosts((currentPosts) =>
         currentPosts.filter((currentPost) => currentPost.id !== postId)
       );
-      setLikeErrorByPostId((currentErrors) => removeRecordEntry(currentErrors, postId));
-      setCommentDraftByPostId((currentDrafts) => removeRecordEntry(currentDrafts, postId));
-      setCommentErrorByPostId((currentErrors) => removeRecordEntry(currentErrors, postId));
-      setCommentSuccessByPostId((currentSuccesses) => removeRecordEntry(currentSuccesses, postId));
-      setLatestCommentByPostId((currentComments) => removeRecordEntry(currentComments, postId));
-      setLatestCommentLoadingByPostId((currentLoading) => removeRecordEntry(currentLoading, postId));
-      setExpandedCommentsPostIds((currentExpanded) => removeRecordEntry(currentExpanded, postId));
-      setCommentsByPostId((currentComments) => removeRecordEntry(currentComments, postId));
-      setCommentsPaginationByPostId((currentPagination) => removeRecordEntry(currentPagination, postId));
-      setCommentsLoadingByPostId((currentLoading) => removeRecordEntry(currentLoading, postId));
-      setLoadMoreCommentsLoadingByPostId((currentLoading) => removeRecordEntry(currentLoading, postId));
-      setCommentsErrorByPostId((currentErrors) => removeRecordEntry(currentErrors, postId));
-      setLoadMoreCommentsErrorByPostId((currentErrors) => removeRecordEntry(currentErrors, postId));
-      setDeletePostErrorById((currentErrors) => removeRecordEntry(currentErrors, postId));
-      setSavedPostErrorById((currentErrors) => removeRecordEntry(currentErrors, postId));
-      setEditPostDraftById((currentDrafts) => removeRecordEntry(currentDrafts, postId));
-      setEditPostErrorById((currentErrors) => removeRecordEntry(currentErrors, postId));
-      setPendingSavedPostId((currentPendingPostId) =>
-        currentPendingPostId === postId ? null : currentPendingPostId
-      );
-      setEditingPostId((currentEditingPostId) =>
-        currentEditingPostId === postId ? null : currentEditingPostId
-      );
+      clearPostLocalState(postId);
     } catch {
       setDeletePostErrorById((currentErrors) => ({
         ...currentErrors,
@@ -381,6 +414,32 @@ export function FeedPlaceholderPage({ section }: FeedPlaceholderPageProps) {
       }));
     } finally {
       setPendingSavedPostId(null);
+    }
+  }
+
+  async function handleHidePost(postId: string) {
+    if (!accessToken || pendingHidePostId) {
+      return;
+    }
+
+    setPendingHidePostId(postId);
+    setHidePostErrorById((currentErrors) => ({
+      ...currentErrors,
+      [postId]: null
+    }));
+    setPageMessage(null);
+
+    try {
+      await hidePostApi(accessToken, postId);
+      removeHiddenPostFromFeed(postId);
+      setPageMessage("Post hidden.");
+    } catch {
+      setHidePostErrorById((currentErrors) => ({
+        ...currentErrors,
+        [postId]: "Could not hide post."
+      }));
+    } finally {
+      setPendingHidePostId(null);
     }
   }
 
@@ -810,6 +869,12 @@ export function FeedPlaceholderPage({ section }: FeedPlaceholderPageProps) {
         ))}
       </nav>
 
+      {pageMessage ? (
+        <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm font-medium text-green-800 shadow-sm">
+          {pageMessage}
+        </div>
+      ) : null}
+
       {accessToken ? (
         <CreatePostForm
           accessToken={accessToken}
@@ -849,50 +914,60 @@ export function FeedPlaceholderPage({ section }: FeedPlaceholderPageProps) {
 
       {!isLoadingInitial && !errorMessage && hasPosts ? (
         <div className="space-y-4">
-          {posts.map((post) => (
-            <PostCard
-              key={post.id}
-              post={post}
-              isLikePending={pendingLikePostId === post.id}
-              likeErrorMessage={likeErrorByPostId[post.id] ?? null}
-              onToggleLike={handleToggleLike}
-              isSavePending={pendingSavedPostId === post.id}
-              savedPostError={savedPostErrorById[post.id] ?? null}
-              onToggleSavedPost={handleToggleSavedPost}
-              commentDraft={commentDraftByPostId[post.id] ?? ""}
-              isCommentPending={pendingCommentPostId === post.id}
-              commentErrorMessage={commentErrorByPostId[post.id] ?? null}
-              commentSuccessMessage={commentSuccessByPostId[post.id] ?? null}
-              onCommentDraftChange={handleCommentDraftChange}
-              onSubmitComment={handleSubmitComment}
-              latestComment={latestCommentByPostId[post.id] ?? null}
-              comments={commentsByPostId[post.id] ?? []}
-              areCommentsExpanded={expandedCommentsPostIds[post.id] ?? false}
-              isLatestCommentLoading={latestCommentLoadingByPostId[post.id] ?? false}
-              isCommentsLoading={commentsLoadingByPostId[post.id] ?? false}
-              isLoadingMoreComments={loadMoreCommentsLoadingByPostId[post.id] ?? false}
-              commentsErrorMessage={commentsErrorByPostId[post.id] ?? null}
-              loadMoreCommentsErrorMessage={loadMoreCommentsErrorByPostId[post.id] ?? null}
-              hasMoreComments={commentsPaginationByPostId[post.id]?.hasMore ?? false}
-              currentUserId={user?.id ?? null}
-              pendingDeletePostId={pendingDeletePostId}
-              deletePostError={deletePostErrorById[post.id] ?? null}
-              isEditingPost={editingPostId === post.id}
-              editPostDraft={editPostDraftById[post.id] ?? post.content}
-              isEditPending={pendingEditPostId === post.id}
-              editPostError={editPostErrorById[post.id] ?? null}
-              pendingDeleteCommentId={pendingDeleteCommentId}
-              deleteCommentErrorByCommentId={deleteCommentErrorByCommentId}
-              onDeletePost={handleDeletePost}
-              onStartEditPost={handleStartEditPost}
-              onCancelEditPost={handleCancelEditPost}
-              onEditPostDraftChange={handleEditPostDraftChange}
-              onSaveEditPost={handleSaveEditPost}
-              onToggleComments={handleToggleComments}
-              onLoadMoreComments={handleLoadMoreComments}
-              onDeleteComment={handleDeleteComment}
-            />
-          ))}
+          {posts.map((post) => {
+            const isOwnFeedPost =
+              user?.id !== undefined &&
+              (post.author?.id === user.id || post.authorId === user.id);
+
+            return (
+              <PostCard
+                key={post.id}
+                post={post}
+                isLikePending={pendingLikePostId === post.id}
+                likeErrorMessage={likeErrorByPostId[post.id] ?? null}
+                onToggleLike={handleToggleLike}
+                isSavePending={pendingSavedPostId === post.id}
+                savedPostError={savedPostErrorById[post.id] ?? null}
+                onToggleSavedPost={handleToggleSavedPost}
+                canHide={Boolean(user?.id) && !isOwnFeedPost}
+                isHiding={pendingHidePostId === post.id}
+                hideError={hidePostErrorById[post.id] ?? null}
+                onHide={() => void handleHidePost(post.id)}
+                commentDraft={commentDraftByPostId[post.id] ?? ""}
+                isCommentPending={pendingCommentPostId === post.id}
+                commentErrorMessage={commentErrorByPostId[post.id] ?? null}
+                commentSuccessMessage={commentSuccessByPostId[post.id] ?? null}
+                onCommentDraftChange={handleCommentDraftChange}
+                onSubmitComment={handleSubmitComment}
+                latestComment={latestCommentByPostId[post.id] ?? null}
+                comments={commentsByPostId[post.id] ?? []}
+                areCommentsExpanded={expandedCommentsPostIds[post.id] ?? false}
+                isLatestCommentLoading={latestCommentLoadingByPostId[post.id] ?? false}
+                isCommentsLoading={commentsLoadingByPostId[post.id] ?? false}
+                isLoadingMoreComments={loadMoreCommentsLoadingByPostId[post.id] ?? false}
+                commentsErrorMessage={commentsErrorByPostId[post.id] ?? null}
+                loadMoreCommentsErrorMessage={loadMoreCommentsErrorByPostId[post.id] ?? null}
+                hasMoreComments={commentsPaginationByPostId[post.id]?.hasMore ?? false}
+                currentUserId={user?.id ?? null}
+                pendingDeletePostId={pendingDeletePostId}
+                deletePostError={deletePostErrorById[post.id] ?? null}
+                isEditingPost={editingPostId === post.id}
+                editPostDraft={editPostDraftById[post.id] ?? post.content}
+                isEditPending={pendingEditPostId === post.id}
+                editPostError={editPostErrorById[post.id] ?? null}
+                pendingDeleteCommentId={pendingDeleteCommentId}
+                deleteCommentErrorByCommentId={deleteCommentErrorByCommentId}
+                onDeletePost={handleDeletePost}
+                onStartEditPost={handleStartEditPost}
+                onCancelEditPost={handleCancelEditPost}
+                onEditPostDraftChange={handleEditPostDraftChange}
+                onSaveEditPost={handleSaveEditPost}
+                onToggleComments={handleToggleComments}
+                onLoadMoreComments={handleLoadMoreComments}
+                onDeleteComment={handleDeleteComment}
+              />
+            );
+          })}
         </div>
       ) : null}
 

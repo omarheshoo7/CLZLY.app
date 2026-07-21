@@ -13,6 +13,10 @@ type PostCardProps = {
   isSavePending: boolean;
   savedPostError?: string | null;
   onToggleSavedPost: (post: FeedPost) => Promise<void> | void;
+  canHide?: boolean;
+  isHiding?: boolean;
+  hideError?: string | null;
+  onHide?: () => void;
   commentDraft: string;
   isCommentPending: boolean;
   commentErrorMessage?: string | null;
@@ -65,6 +69,10 @@ export function PostCard({
   isSavePending,
   savedPostError,
   onToggleSavedPost,
+  canHide,
+  isHiding,
+  hideError,
+  onHide,
   commentDraft,
   isCommentPending,
   commentErrorMessage,
@@ -122,6 +130,7 @@ export function PostCard({
     : post.savedByMe
       ? "Saved"
       : "Save";
+  const shouldShowHidePost = Boolean(canHide && onHide && !isEditingPost);
 
   return (
     <article className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
@@ -148,6 +157,16 @@ export function PostCard({
           >
             {saveButtonLabel}
           </button>
+          {shouldShowHidePost ? (
+            <button
+              className="rounded-md px-2 py-1 text-sm font-medium text-gray-700 transition hover:bg-gray-50 hover:text-gray-950 disabled:cursor-not-allowed disabled:opacity-60"
+              type="button"
+              disabled={isHiding}
+              onClick={() => onHide?.()}
+            >
+              {isHiding ? "Hiding..." : "Hide post"}
+            </button>
+          ) : null}
           {isOwnPost && !isEditingPost ? (
             <>
               <button
@@ -175,6 +194,9 @@ export function PostCard({
       ) : null}
       {savedPostError ? (
         <p className="mt-3 text-sm text-red-700">{savedPostError}</p>
+      ) : null}
+      {hideError ? (
+        <p className="mt-3 text-sm text-red-700">{hideError}</p>
       ) : null}
 
       {isEditingPost ? (

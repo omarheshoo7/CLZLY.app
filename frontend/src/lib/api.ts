@@ -369,6 +369,13 @@ export async function clearSavedPostsApi(accessToken: string) {
   });
 }
 
+export async function hidePostApi(accessToken: string, postId: string) {
+  return apiRequest<{ message: string }>(`/posts/${postId}/hide`, {
+    method: "POST",
+    token: accessToken
+  });
+}
+
 export async function deletePostApi({
   accessToken,
   postId
