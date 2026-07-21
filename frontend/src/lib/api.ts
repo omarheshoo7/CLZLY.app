@@ -141,6 +141,16 @@ export type UserProfileData = {
   canViewPosts: boolean;
 };
 
+export type ProfilePostsData = {
+  posts: FeedPost[];
+  pagination: FeedPagination;
+};
+
+export type GetProfilePostsParams = {
+  limit?: number;
+  cursor?: string;
+};
+
 export type CreatedPost = {
   id: string;
   authorId: string;
@@ -323,6 +333,32 @@ export async function searchUsersApi(accessToken: string, q: string) {
 export async function getUserProfileApi(accessToken: string, username: string) {
   return apiRequest<UserProfileData>(
     `/users/${encodeURIComponent(username)}`,
+    {
+      method: "GET",
+      token: accessToken
+    }
+  );
+}
+
+export async function getProfilePostsApi(
+  accessToken: string,
+  username: string,
+  params?: GetProfilePostsParams
+) {
+  const searchParams = new URLSearchParams();
+
+  if (params?.limit) {
+    searchParams.set("limit", String(params.limit));
+  }
+
+  if (params?.cursor) {
+    searchParams.set("cursor", params.cursor);
+  }
+
+  const queryString = searchParams.toString();
+
+  return apiRequest<ProfilePostsData>(
+    `/users/${encodeURIComponent(username)}/posts${queryString ? `?${queryString}` : ""}`,
     {
       method: "GET",
       token: accessToken
