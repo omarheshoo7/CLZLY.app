@@ -74,6 +74,7 @@ export function UserProfilePage() {
   const [isPostsLoading, setIsPostsLoading] = useState(false);
   const [isLoadingMorePosts, setIsLoadingMorePosts] = useState(false);
   const [postsErrorMessage, setPostsErrorMessage] = useState<string | null>(null);
+  const [loadMorePostsErrorMessage, setLoadMorePostsErrorMessage] = useState<string | null>(null);
   const [postActionMessage, setPostActionMessage] = useState<string | null>(null);
   const [pendingLikePostId, setPendingLikePostId] = useState<string | null>(null);
   const [likeErrorByPostId, setLikeErrorByPostId] = useState<Record<string, string | undefined>>({});
@@ -160,6 +161,7 @@ export function UserProfilePage() {
       setPosts([]);
       setPostsPagination(emptyPostsPagination);
       setPostsErrorMessage(null);
+      setLoadMorePostsErrorMessage(null);
       setPostActionMessage(null);
 
       if (!accessToken || !profile || !profile.user.username || !profile.canViewPosts) {
@@ -180,6 +182,8 @@ export function UserProfilePage() {
 
         setPosts(response.data.posts);
         setPostsPagination(response.data.pagination);
+        setPostsErrorMessage(null);
+        setLoadMorePostsErrorMessage(null);
       } catch {
         if (!isCurrentRequest) {
           return;
@@ -188,6 +192,7 @@ export function UserProfilePage() {
         setPosts([]);
         setPostsPagination(emptyPostsPagination);
         setPostsErrorMessage("Could not load posts.");
+        setLoadMorePostsErrorMessage(null);
       } finally {
         if (isCurrentRequest) {
           setIsPostsLoading(false);
@@ -349,7 +354,7 @@ export function UserProfilePage() {
     const targetUsername = profile.user.username;
 
     setIsLoadingMorePosts(true);
-    setPostsErrorMessage(null);
+    setLoadMorePostsErrorMessage(null);
 
     try {
       const response = await getProfilePostsApi(accessToken, targetUsername, {
@@ -366,6 +371,7 @@ export function UserProfilePage() {
 
       setPosts((currentPosts) => [...currentPosts, ...response.data.posts]);
       setPostsPagination(response.data.pagination);
+      setLoadMorePostsErrorMessage(null);
     } catch {
       if (
         currentProfileUsernameRef.current !== targetUsername ||
@@ -374,7 +380,7 @@ export function UserProfilePage() {
         return;
       }
 
-      setPostsErrorMessage("Could not load posts.");
+      setLoadMorePostsErrorMessage("Could not load posts.");
     } finally {
       setIsLoadingMorePosts(false);
     }
@@ -1128,8 +1134,8 @@ export function UserProfilePage() {
 
         {!isPostsLoading && postsPagination.hasMore ? (
           <div className="flex flex-col items-center gap-3">
-            {postsErrorMessage ? (
-              <p className="text-sm text-red-700">{postsErrorMessage}</p>
+            {loadMorePostsErrorMessage ? (
+              <p className="text-sm text-red-700">{loadMorePostsErrorMessage}</p>
             ) : null}
             <button
               className="rounded-md bg-gray-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
