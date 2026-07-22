@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { PostCard } from "../components/PostCard";
 import {
@@ -84,6 +84,7 @@ function removeRecordEntry<T>(record: Record<string, T>, key: string) {
 
 export function UserProfilePage() {
   const { username } = useParams<{ username: string }>();
+  const navigate = useNavigate();
   const { accessToken, user } = useAuth();
   const [profile, setProfile] = useState<UserProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -1504,12 +1505,21 @@ export function UserProfilePage() {
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-      <Link
-        className="text-sm font-semibold text-gray-700 transition hover:text-gray-950"
-        to="/app/search"
+      <button
+        aria-label="Go back"
+        className="flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 bg-white text-lg font-semibold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-950"
+        type="button"
+        onClick={() => {
+          if (window.history.length > 1) {
+            navigate(-1);
+            return;
+          }
+
+          navigate("/app/search");
+        }}
       >
-        Back to search
-      </Link>
+        ←
+      </button>
 
       {isLoading ? (
         <div className="rounded-lg border border-gray-200 bg-white p-6 text-sm text-gray-600 shadow-sm">
