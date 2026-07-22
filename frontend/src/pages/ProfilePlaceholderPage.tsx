@@ -1,181 +1,350 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
-import { PlaceholderPage } from "../components/PlaceholderPage";
-import { followUserApi, isPendingFollowRequestError, unfollowUserApi } from "../lib/api";
+import {
+  updateMyPrivacyApi,
+  updateMyProfileApi,
+  type UpdateMyProfileInput
+} from "../lib/api";
 
-type FollowAction = "follow" | "unfollow";
+function normalizeOptionalText(value: string) {
+  const trimmedValue = value.trim();
 
-function formatSuccessMessage(message: string | undefined, fallback: string) {
-  const nextMessage = message ?? fallback;
+  return trimmedValue.length > 0 ? trimmedValue : null;
+}
 
-  return /[.!?]$/.test(nextMessage) ? nextMessage : `${nextMessage}.`;
+function normalizeUserText(value: string | null) {
+  return value && value.length > 0 ? value : null;
+}
+
+function getFallbackLetter(displayName: string, username: string | undefined) {
+  const normalizedDisplayName = normalizeOptionalText(displayName);
+  const source = normalizedDisplayName ?? username ?? "U";
+
+  return source.charAt(0).toUpperCase();
 }
 
 export function ProfilePlaceholderPage() {
-  const { user, accessToken } = useAuth();
-  const [targetUsername, setTargetUsername] = useState("");
-  const [pendingAction, setPendingAction] = useState<FollowAction | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [lastActionTarget, setLastActionTarget] = useState<string | null>(null);
-  const isActionPending = pendingAction !== null;
+  const { user, accessToken, refreshSession } = useAuth();
+  const [displayName, setDisplayName] = useState("");
+  const [bio, setBio] = useState("");
+  const [profilePictureUrl, setProfilePictureUrl] = useState("");
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [hasAvatarError, setHasAvatarError] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isSavingPrivacy, setIsSavingPrivacy] = useState(false);
+  const [profileSuccessMessage, setProfileSuccessMessage] = useState<string | null>(null);
+  const [profileErrorMessage, setProfileErrorMessage] = useState<string | null>(null);
+  const [privacySuccessMessage, setPrivacySuccessMessage] = useState<string | null>(null);
+  const [privacyErrorMessage, setPrivacyErrorMessage] = useState<string | null>(null);
 
-  function handleTargetUsernameChange(value: string) {
-    setTargetUsername(value);
-    setSuccessMessage(null);
-    setErrorMessage(null);
-    setLastActionTarget(null);
-  }
-
-  function getValidatedTargetUsername(action: FollowAction) {
-    const trimmedUsername = targetUsername.trim();
-
-    if (!trimmedUsername) {
-      setSuccessMessage(null);
-      setErrorMessage("Username is required.");
-      return null;
-    }
-
-    if (user?.username && trimmedUsername.toLowerCase() === user.username.toLowerCase()) {
-      setSuccessMessage(null);
-      setErrorMessage("You cannot follow yourself.");
-      return null;
-    }
-
-    if (!accessToken) {
-      setSuccessMessage(null);
-      setErrorMessage(action === "follow" ? "Could not follow user." : "Could not unfollow user.");
-      return null;
-    }
-
-    return trimmedUsername;
-  }
-
-  async function handleFollowUser() {
-    const trimmedUsername = getValidatedTargetUsername("follow");
-
-    if (!trimmedUsername || !accessToken || pendingAction) {
+  useEffect(() => {
+    if (!user) {
       return;
     }
 
-    setPendingAction("follow");
-    setSuccessMessage(null);
-    setErrorMessage(null);
+    setDisplayName(user.displayName ?? "");
+    setBio(user.bio ?? "");
+    setProfilePictureUrl(user.profilePictureUrl ?? "");
+    setIsPrivate(user.isPrivate);
+    setHasAvatarError(false);
+  }, [user]);
 
-    try {
-      const response = await followUserApi(accessToken, trimmedUsername);
+  const normalizedDisplayName = useMemo(() => normalizeOptionalText(displayName), [displayName]);
+  const normalizedBio = useMemo(() => normalizeOptionalText(bio), [bio]);
+  const normalizedProfilePictureUrl = useMemo(
+    () => normalizeOptionalText(profilePictureUrl),
+    [profilePictureUrl]
+  );
 
-      setLastActionTarget(trimmedUsername);
-      setSuccessMessage(formatSuccessMessage(response.message, "User followed successfully."));
-    } catch (error) {
-      setErrorMessage(
-        isPendingFollowRequestError(error)
-          ? "Follow request already sent to this account."
-          : "Could not follow user."
-      );
-    } finally {
-      setPendingAction(null);
-    }
+  const hasProfileChanges = Boolean(user) && (
+    normalizedDisplayName !== normalizeUserText(user?.displayName ?? null) ||
+    normalizedBio !== normalizeUserText(user?.bio ?? null) ||
+    normalizedProfilePictureUrl !== normalizeUserText(user?.profilePictureUrl ?? null)
+  );
+  const hasPrivacyChanges = Boolean(user) && isPrivate !== user?.isPrivate;
+  const canSaveProfile = Boolean(accessToken && user && hasProfileChanges && !isSavingProfile);
+  const canSavePrivacy = Boolean(accessToken && user && hasPrivacyChanges && !isSavingPrivacy);
+  const shouldShowAvatarImage = Boolean(normalizedProfilePictureUrl && !hasAvatarError);
+  const fallbackLetter = getFallbackLetter(displayName, user?.username);
+
+  function syncProfileFormFromUser(nextUser: NonNullable<typeof user>) {
+    setDisplayName(nextUser.displayName ?? "");
+    setBio(nextUser.bio ?? "");
+    setProfilePictureUrl(nextUser.profilePictureUrl ?? "");
+    setHasAvatarError(false);
   }
 
-  async function handleUnfollowUser() {
-    const trimmedUsername = getValidatedTargetUsername("unfollow");
+  async function handleProfileSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
 
-    if (!trimmedUsername || !accessToken || pendingAction) {
+    if (!accessToken || !user || isSavingProfile || !hasProfileChanges) {
       return;
     }
 
-    setPendingAction("unfollow");
-    setSuccessMessage(null);
-    setErrorMessage(null);
+    const payload: UpdateMyProfileInput = {};
+
+    if (normalizedDisplayName !== normalizeUserText(user.displayName)) {
+      payload.displayName = normalizedDisplayName;
+    }
+
+    if (normalizedBio !== normalizeUserText(user.bio)) {
+      payload.bio = normalizedBio;
+    }
+
+    if (normalizedProfilePictureUrl !== normalizeUserText(user.profilePictureUrl)) {
+      payload.profilePictureUrl = normalizedProfilePictureUrl;
+    }
+
+    if (Object.keys(payload).length === 0) {
+      return;
+    }
+
+    setIsSavingProfile(true);
+    setProfileSuccessMessage(null);
+    setProfileErrorMessage(null);
 
     try {
-      const response = await unfollowUserApi(accessToken, trimmedUsername);
+      const response = await updateMyProfileApi(accessToken, payload);
 
-      setLastActionTarget(trimmedUsername);
-      setSuccessMessage(formatSuccessMessage(response.message, "User unfollowed successfully."));
+      syncProfileFormFromUser(response.data.user);
+      setProfileSuccessMessage("Profile updated successfully.");
+      await refreshSession();
     } catch {
-      setErrorMessage("Could not unfollow user.");
+      setProfileErrorMessage("Could not update profile.");
     } finally {
-      setPendingAction(null);
+      setIsSavingProfile(false);
     }
+  }
+
+  async function handlePrivacySubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!accessToken || !user || isSavingPrivacy || !hasPrivacyChanges) {
+      return;
+    }
+
+    setIsSavingPrivacy(true);
+    setPrivacySuccessMessage(null);
+    setPrivacyErrorMessage(null);
+
+    try {
+      const response = await updateMyPrivacyApi(accessToken, { isPrivate });
+
+      setIsPrivate(response.data.user.isPrivate);
+      setPrivacySuccessMessage("Privacy updated successfully.");
+      await refreshSession();
+    } catch {
+      setPrivacyErrorMessage("Could not update privacy.");
+    } finally {
+      setIsSavingPrivacy(false);
+    }
+  }
+
+  function handleProfilePictureUrlChange(value: string) {
+    setProfilePictureUrl(value);
+    setHasAvatarError(false);
   }
 
   return (
-    <PlaceholderPage
-      title="Profile"
-      description="Your profile page will appear here."
-    >
-      {user ? (
-        <div className="rounded-md bg-gray-50 p-4 text-sm text-gray-700">
-          <p>
-            Signed in as <span className="font-semibold text-gray-950">{user.username}</span>
-          </p>
-          <p className="mt-1">{user.email}</p>
-        </div>
-      ) : null}
+    <div className="mx-auto w-full max-w-3xl">
+      <header>
+        <h1 className="text-2xl font-semibold text-gray-950">Profile settings</h1>
+        <p className="mt-2 text-sm text-gray-600">
+          Manage your public profile and account privacy.
+        </p>
+      </header>
 
-      <div className="mt-6 rounded-md border border-gray-200 bg-gray-50 p-4">
-        <div>
-          <h3 className="text-base font-semibold text-gray-950">Follow users</h3>
-          <p className="mt-1 text-sm text-gray-600">
-            Enter a username to follow or unfollow another user.
-          </p>
+      <section className="mt-6 rounded-md border border-gray-200 bg-white p-5">
+        <h2 className="text-base font-semibold text-gray-950">Account</h2>
+
+        <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 text-2xl font-semibold text-gray-600">
+            {shouldShowAvatarImage ? (
+              <img
+                className="size-full object-cover"
+                src={normalizedProfilePictureUrl ?? undefined}
+                alt=""
+                onError={() => setHasAvatarError(true)}
+              />
+            ) : (
+              <span>{fallbackLetter}</span>
+            )}
+          </div>
+
+          <div className="min-w-0">
+            <p className="text-sm text-gray-500">Username</p>
+            <p className="break-words text-base font-semibold text-gray-950">
+              {user?.username ?? ""}
+            </p>
+            <p className="mt-2 text-sm text-gray-500">Email</p>
+            <p className="break-words text-sm text-gray-800">{user?.email ?? ""}</p>
+            <p className="mt-3 inline-flex rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-700">
+              {user?.isPrivate ? "Private account" : "Public account"}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <form className="mt-6 rounded-md border border-gray-200 bg-white p-5" onSubmit={handleProfileSubmit}>
+        <h2 className="text-base font-semibold text-gray-950">Profile details</h2>
+
+        <div className="mt-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-800" htmlFor="profile-display-name">
+              Display name
+            </label>
+            <input
+              id="profile-display-name"
+              className="mt-2 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-950 shadow-sm outline-none transition placeholder:text-gray-400 focus:border-gray-950 focus:ring-2 focus:ring-gray-200 disabled:bg-gray-100 disabled:text-gray-500"
+              type="text"
+              maxLength={50}
+              value={displayName}
+              disabled={isSavingProfile}
+              onChange={(event) => {
+                setDisplayName(event.target.value);
+                setProfileSuccessMessage(null);
+                setProfileErrorMessage(null);
+              }}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-800" htmlFor="profile-bio">
+              Bio
+            </label>
+            <textarea
+              id="profile-bio"
+              className="mt-2 block min-h-28 w-full resize-y rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-950 shadow-sm outline-none transition placeholder:text-gray-400 focus:border-gray-950 focus:ring-2 focus:ring-gray-200 disabled:bg-gray-100 disabled:text-gray-500"
+              maxLength={160}
+              value={bio}
+              disabled={isSavingProfile}
+              onChange={(event) => {
+                setBio(event.target.value);
+                setProfileSuccessMessage(null);
+                setProfileErrorMessage(null);
+              }}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-800" htmlFor="profile-picture-url">
+              Profile picture URL
+            </label>
+            <input
+              id="profile-picture-url"
+              className="mt-2 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-950 shadow-sm outline-none transition placeholder:text-gray-400 focus:border-gray-950 focus:ring-2 focus:ring-gray-200 disabled:bg-gray-100 disabled:text-gray-500"
+              type="url"
+              maxLength={500}
+              value={profilePictureUrl}
+              disabled={isSavingProfile}
+              onChange={(event) => {
+                handleProfilePictureUrlChange(event.target.value);
+                setProfileSuccessMessage(null);
+                setProfileErrorMessage(null);
+              }}
+            />
+          </div>
         </div>
 
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-800" htmlFor="follow-target-username">
-            Username
-          </label>
-          <input
-            id="follow-target-username"
-            className="mt-2 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-950 shadow-sm outline-none transition placeholder:text-gray-400 focus:border-gray-950 focus:ring-2 focus:ring-gray-200 disabled:bg-gray-100 disabled:text-gray-500"
-            type="text"
-            autoComplete="off"
-            placeholder="example_username"
-            value={targetUsername}
-            disabled={isActionPending}
-            onChange={(event) => handleTargetUsernameChange(event.target.value)}
-          />
-          <p className="mt-2 text-xs text-gray-500">
-            Your feed updates after you refresh it.
-          </p>
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-3">
+        <div className="mt-5 flex flex-wrap items-center gap-3">
           <button
             className="rounded-md bg-gray-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
-            type="button"
-            disabled={isActionPending}
-            onClick={() => void handleFollowUser()}
+            type="submit"
+            disabled={!canSaveProfile}
           >
-            {pendingAction === "follow" ? "Following..." : "Follow"}
+            Save profile
           </button>
-          <button
-            className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 transition hover:border-gray-400 hover:bg-gray-100 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400"
-            type="button"
-            disabled={isActionPending}
-            onClick={() => void handleUnfollowUser()}
+
+          {profileSuccessMessage ? (
+            <p className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+              {profileSuccessMessage}
+            </p>
+          ) : null}
+
+          {profileErrorMessage ? (
+            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {profileErrorMessage}
+            </p>
+          ) : null}
+        </div>
+      </form>
+
+      <form className="mt-6 rounded-md border border-gray-200 bg-white p-5" onSubmit={handlePrivacySubmit}>
+        <h2 className="text-base font-semibold text-gray-950">Privacy</h2>
+        <p className="mt-2 text-sm text-gray-600">
+          Private accounts require approval for new followers.
+        </p>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <label
+            className={[
+              "cursor-pointer rounded-md border p-4 transition",
+              !isPrivate
+                ? "border-gray-950 bg-gray-50"
+                : "border-gray-200 bg-white hover:border-gray-300"
+            ].join(" ")}
           >
-            {pendingAction === "unfollow" ? "Unfollowing..." : "Unfollow"}
-          </button>
+            <input
+              className="sr-only"
+              type="radio"
+              name="account-privacy"
+              checked={!isPrivate}
+              disabled={isSavingPrivacy}
+              onChange={() => {
+                setIsPrivate(false);
+                setPrivacySuccessMessage(null);
+                setPrivacyErrorMessage(null);
+              }}
+            />
+            <span className="block text-sm font-semibold text-gray-950">Public account</span>
+          </label>
+
+          <label
+            className={[
+              "cursor-pointer rounded-md border p-4 transition",
+              isPrivate
+                ? "border-gray-950 bg-gray-50"
+                : "border-gray-200 bg-white hover:border-gray-300"
+            ].join(" ")}
+          >
+            <input
+              className="sr-only"
+              type="radio"
+              name="account-privacy"
+              checked={isPrivate}
+              disabled={isSavingPrivacy}
+              onChange={() => {
+                setIsPrivate(true);
+                setPrivacySuccessMessage(null);
+                setPrivacyErrorMessage(null);
+              }}
+            />
+            <span className="block text-sm font-semibold text-gray-950">Private account</span>
+          </label>
         </div>
 
-        {successMessage ? (
-          <p className="mt-4 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
-            {successMessage}
-            {lastActionTarget ? (
-              <span className="sr-only"> Target username: {lastActionTarget}</span>
-            ) : null}
-          </p>
-        ) : null}
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <button
+            className="rounded-md bg-gray-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
+            type="submit"
+            disabled={!canSavePrivacy}
+          >
+            Save privacy
+          </button>
 
-        {errorMessage ? (
-          <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {errorMessage}
-          </p>
-        ) : null}
-      </div>
-    </PlaceholderPage>
+          {privacySuccessMessage ? (
+            <p className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+              {privacySuccessMessage}
+            </p>
+          ) : null}
+
+          {privacyErrorMessage ? (
+            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {privacyErrorMessage}
+            </p>
+          ) : null}
+        </div>
+      </form>
+    </div>
   );
 }

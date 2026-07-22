@@ -285,6 +285,20 @@ type CurrentUserData = {
   user: User;
 };
 
+export type UpdateMyProfileInput = {
+  displayName?: string | null;
+  bio?: string | null;
+  profilePictureUrl?: string | null;
+};
+
+export type UpdateMyPrivacyInput = {
+  isPrivate: boolean;
+};
+
+export type UpdateCurrentUserData = {
+  user: User;
+};
+
 type GetFeedParams = {
   cursor?: string;
   limit?: number;
@@ -386,6 +400,28 @@ export async function logoutApi() {
 export async function getCurrentUserApi(token: string) {
   return apiRequest<CurrentUserData>("/auth/me", {
     token
+  });
+}
+
+export async function updateMyProfileApi(
+  accessToken: string,
+  input: UpdateMyProfileInput
+) {
+  return apiRequest<UpdateCurrentUserData>("/users/me", {
+    method: "PATCH",
+    token: accessToken,
+    body: input
+  });
+}
+
+export async function updateMyPrivacyApi(
+  accessToken: string,
+  input: UpdateMyPrivacyInput
+) {
+  return apiRequest<UpdateCurrentUserData>("/users/me/privacy", {
+    method: "PATCH",
+    token: accessToken,
+    body: input
   });
 }
 
