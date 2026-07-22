@@ -108,6 +108,31 @@ export type FollowUserData = {
   follow: FollowRecord;
 };
 
+export type IncomingFollowRequestUser = {
+  id: string;
+  username: string;
+  displayName: string | null;
+  bio: string | null;
+  profilePictureUrl: string | null;
+  isPrivate: boolean;
+  createdAt: string;
+};
+
+export type IncomingFollowRequest = {
+  id: string;
+  status: "PENDING";
+  createdAt: string;
+  requester: IncomingFollowRequestUser;
+};
+
+export type IncomingFollowRequestsData = {
+  requests: IncomingFollowRequest[];
+};
+
+export type AcceptFollowRequestData = {
+  follow: unknown;
+};
+
 export type UserFollowStatus = "SELF" | "FOLLOWING" | "REQUESTED" | "NONE";
 
 export type SearchUser = {
@@ -612,6 +637,33 @@ export async function followUserApi(accessToken: string, username: string) {
     `/users/${encodeURIComponent(username)}/follow`,
     {
       method: "POST",
+      token: accessToken
+    }
+  );
+}
+
+export async function getIncomingFollowRequestsApi(accessToken: string) {
+  return apiRequest<IncomingFollowRequestsData>("/users/me/follow-requests", {
+    method: "GET",
+    token: accessToken
+  });
+}
+
+export async function acceptFollowRequestApi(accessToken: string, followId: string) {
+  return apiRequest<AcceptFollowRequestData>(
+    `/users/follow-requests/${encodeURIComponent(followId)}/accept`,
+    {
+      method: "PATCH",
+      token: accessToken
+    }
+  );
+}
+
+export async function rejectFollowRequestApi(accessToken: string, followId: string) {
+  return apiRequest<Record<string, never>>(
+    `/users/follow-requests/${encodeURIComponent(followId)}/reject`,
+    {
+      method: "PATCH",
       token: accessToken
     }
   );

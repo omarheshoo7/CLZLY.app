@@ -5,6 +5,7 @@ import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { PublicOnlyRoute } from "./auth/PublicOnlyRoute";
 import { useAuth } from "./auth/AuthContext";
 import { FeedPlaceholderPage } from "./pages/FeedPlaceholderPage";
+import { FollowRequestsPage } from "./pages/FollowRequestsPage";
 import { HiddenPostsPlaceholderPage } from "./pages/HiddenPostsPlaceholderPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ProfilePlaceholderPage } from "./pages/ProfilePlaceholderPage";
@@ -60,6 +61,7 @@ export default function App() {
         <Route path="feed/updates" element={<FeedPlaceholderPage section="updates" />} />
         <Route path="feed/personal" element={<FeedPlaceholderPage section="personal" />} />
         <Route path="search" element={<SearchPage />} />
+        <Route path="follow-requests" element={<FollowRequestsPage />} />
         <Route path="users/:username" element={<UserProfilePage />} />
         <Route path="profile" element={<ProfilePlaceholderPage />} />
         <Route path="saved" element={<SavedPlaceholderPage />} />
