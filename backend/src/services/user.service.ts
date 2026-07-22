@@ -1205,6 +1205,33 @@ export async function getUserProfile({ params, viewerUserId }: GetUserProfileInp
   }
 
   const canViewPosts = isOwnProfile || !user.isPrivate || followStatus === "FOLLOWING";
+  const [postsCount, followersCount, followingCount] = await Promise.all([
+    prisma.post.count({
+      where: {
+        authorId: user.id
+      }
+    }),
+    prisma.follow.count({
+      where: {
+        followingId: user.id,
+        status: "ACCEPTED",
+        follower: {
+          isDisabled: false,
+          deletedAt: null
+        }
+      }
+    }),
+    prisma.follow.count({
+      where: {
+        followerId: user.id,
+        status: "ACCEPTED",
+        following: {
+          isDisabled: false,
+          deletedAt: null
+        }
+      }
+    })
+  ]);
   const { isDisabled: _isDisabled, deletedAt: _deletedAt, ...safeProfile } = user;
 
   return {
@@ -1212,7 +1239,12 @@ export async function getUserProfile({ params, viewerUserId }: GetUserProfileInp
       ...safeProfile,
       followStatus
     },
-    canViewPosts
+    canViewPosts,
+    stats: {
+      postsCount,
+      followersCount,
+      followingCount
+    }
   };
 }
 

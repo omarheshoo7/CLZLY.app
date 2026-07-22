@@ -400,7 +400,8 @@ export function UserProfilePage() {
   function updateProfileFollowState(
     targetUsername: string,
     followStatus: UserFollowStatus,
-    canViewPosts: boolean
+    canViewPosts: boolean,
+    followersCountDelta = 0
   ) {
     setProfile((currentProfile) => {
       if (!currentProfile || currentProfile.user.username !== targetUsername) {
@@ -410,6 +411,10 @@ export function UserProfilePage() {
       return {
         ...currentProfile,
         canViewPosts,
+        stats: {
+          ...currentProfile.stats,
+          followersCount: Math.max(0, currentProfile.stats.followersCount + followersCountDelta)
+        },
         user: {
           ...currentProfile.user,
           followStatus
@@ -1132,6 +1137,7 @@ export function UserProfilePage() {
 
     const targetUsername = profile.user.username;
     const targetIsPrivate = profile.user.isPrivate;
+    const previousFollowStatus = profile.user.followStatus;
 
     setIsFollowActionPending(true);
     setSuccessMessage(null);
@@ -1145,8 +1151,17 @@ export function UserProfilePage() {
       const nextCanViewPosts = response.data.follow.status === "ACCEPTED"
         ? true
         : !targetIsPrivate;
+      const followersCountDelta = response.data.follow.status === "ACCEPTED" &&
+        previousFollowStatus !== "FOLLOWING"
+        ? 1
+        : 0;
 
-      updateProfileFollowState(targetUsername, nextFollowStatus, nextCanViewPosts);
+      updateProfileFollowState(
+        targetUsername,
+        nextFollowStatus,
+        nextCanViewPosts,
+        followersCountDelta
+      );
       setSuccessMessage(formatSuccessMessage(
         response.message,
         getFollowSuccessFallback(response.data.follow.status)
@@ -1165,6 +1180,7 @@ export function UserProfilePage() {
 
     const targetUsername = profile.user.username;
     const targetIsPrivate = profile.user.isPrivate;
+    const previousFollowStatus = profile.user.followStatus;
 
     setIsFollowActionPending(true);
     setSuccessMessage(null);
@@ -1172,8 +1188,9 @@ export function UserProfilePage() {
 
     try {
       const response = await unfollowUserApi(accessToken, targetUsername);
+      const followersCountDelta = previousFollowStatus === "FOLLOWING" ? -1 : 0;
 
-      updateProfileFollowState(targetUsername, "NONE", !targetIsPrivate);
+      updateProfileFollowState(targetUsername, "NONE", !targetIsPrivate, followersCountDelta);
       setSuccessMessage(formatSuccessMessage(response.message, "User unfollowed successfully."));
     } catch {
       setErrorMessage("Could not unfollow user.");
@@ -1530,6 +1547,34 @@ export function UserProfilePage() {
                   <p className="mt-1 break-words text-sm text-gray-600">
                     @{profile.user.username}
                   </p>
+                  <div className="mt-4 flex flex-wrap gap-4 text-sm">
+                    <div className="flex items-baseline gap-1">
+                      <span className="font-semibold text-gray-950">
+                        {profile.stats.postsCount}
+                      </span>
+                      <span className="text-gray-600">Posts</span>
+                    </div>
+                    <button
+                      className="flex items-baseline gap-1 rounded-md text-left transition hover:text-gray-950 focus:outline-none focus:ring-2 focus:ring-gray-200"
+                      type="button"
+                      onClick={() => setActiveSocialGraphTab("followers")}
+                    >
+                      <span className="font-semibold text-gray-950">
+                        {profile.stats.followersCount}
+                      </span>
+                      <span className="text-gray-600">Followers</span>
+                    </button>
+                    <button
+                      className="flex items-baseline gap-1 rounded-md text-left transition hover:text-gray-950 focus:outline-none focus:ring-2 focus:ring-gray-200"
+                      type="button"
+                      onClick={() => setActiveSocialGraphTab("following")}
+                    >
+                      <span className="font-semibold text-gray-950">
+                        {profile.stats.followingCount}
+                      </span>
+                      <span className="text-gray-600">Following</span>
+                    </button>
+                  </div>
                   {profile.user.bio ? (
                     <p className="mt-4 whitespace-pre-wrap break-words text-sm text-gray-700">
                       {profile.user.bio}

@@ -136,9 +136,16 @@ export type UserProfile = {
   followStatus: UserFollowStatus;
 };
 
+export type UserProfileStats = {
+  postsCount: number;
+  followersCount: number;
+  followingCount: number;
+};
+
 export type UserProfileData = {
   user: UserProfile;
   canViewPosts: boolean;
+  stats: UserProfileStats;
 };
 
 export type ProfilePostsData = {
