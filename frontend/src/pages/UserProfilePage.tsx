@@ -14,6 +14,7 @@ import {
   getUserFollowingApi,
   getUserProfileApi,
   hidePostApi,
+  isPendingFollowRequestError,
   likePostApi,
   savePostApi,
   unlikePostApi,
@@ -1166,8 +1167,12 @@ export function UserProfilePage() {
         response.message,
         getFollowSuccessFallback(response.data.follow.status)
       ));
-    } catch {
-      setErrorMessage("Could not follow user.");
+    } catch (error) {
+      setErrorMessage(
+        isPendingFollowRequestError(error)
+          ? "Follow request already sent to this account."
+          : "Could not follow user."
+      );
     } finally {
       setIsFollowActionPending(false);
     }

@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import {
   followUserApi,
+  isPendingFollowRequestError,
   searchUsersApi,
   unfollowUserApi,
   type SearchUser
@@ -118,8 +119,12 @@ export function SearchPage() {
         response.message,
         getFollowSuccessFallback(response.data.follow.status)
       ));
-    } catch {
-      setErrorMessage("Could not follow user.");
+    } catch (error) {
+      setErrorMessage(
+        isPendingFollowRequestError(error)
+          ? "Follow request already sent to this account."
+          : "Could not follow user."
+      );
     } finally {
       setPendingUsername(null);
     }

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { PlaceholderPage } from "../components/PlaceholderPage";
-import { followUserApi, unfollowUserApi } from "../lib/api";
+import { followUserApi, isPendingFollowRequestError, unfollowUserApi } from "../lib/api";
 
 type FollowAction = "follow" | "unfollow";
 
@@ -67,8 +67,12 @@ export function ProfilePlaceholderPage() {
 
       setLastActionTarget(trimmedUsername);
       setSuccessMessage(formatSuccessMessage(response.message, "User followed successfully."));
-    } catch {
-      setErrorMessage("Could not follow user.");
+    } catch (error) {
+      setErrorMessage(
+        isPendingFollowRequestError(error)
+          ? "Follow request already sent to this account."
+          : "Could not follow user."
+      );
     } finally {
       setPendingAction(null);
     }

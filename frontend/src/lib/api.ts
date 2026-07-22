@@ -314,6 +314,12 @@ export class ApiError extends Error {
   }
 }
 
+export function isPendingFollowRequestError(error: unknown) {
+  return error instanceof ApiError &&
+    error.statusCode === 409 &&
+    error.message === "Follow request is already pending";
+}
+
 async function apiRequest<T>(path: string, options: ApiRequestOptions = {}) {
   const headers = new Headers();
 
