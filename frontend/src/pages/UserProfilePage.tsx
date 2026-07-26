@@ -1225,17 +1225,18 @@ export function UserProfilePage() {
   }
 
   async function handleFollowRequestAction(action: "accept" | "decline") {
+    const incomingFollowRequestId = profile
+      ? profile.user.incomingFollowRequestId ?? profile.user.followRequestId
+      : null;
+
     if (
       !accessToken ||
       !profile ||
-      profile.user.followStatus !== "REQUESTED_ME" ||
-      !profile.user.followRequestId ||
+      !incomingFollowRequestId ||
       pendingFollowRequestAction
     ) {
       return;
     }
-
-    const followRequestId = profile.user.followRequestId;
 
     setPendingFollowRequestAction(action);
     setSuccessMessage(null);
@@ -1243,9 +1244,9 @@ export function UserProfilePage() {
 
     try {
       if (action === "accept") {
-        await acceptFollowRequestApi(accessToken, followRequestId);
+        await acceptFollowRequestApi(accessToken, incomingFollowRequestId);
       } else {
-        await rejectFollowRequestApi(accessToken, followRequestId);
+        await rejectFollowRequestApi(accessToken, incomingFollowRequestId);
       }
 
       await refreshProfile();
@@ -1257,6 +1258,49 @@ export function UserProfilePage() {
     } finally {
       setPendingFollowRequestAction(null);
     }
+  }
+
+  function renderIncomingFollowRequestBanner() {
+    if (!profile) {
+      return null;
+    }
+
+    const incomingFollowRequestId =
+      profile.user.incomingFollowRequestId ?? profile.user.followRequestId;
+
+    if (!incomingFollowRequestId) {
+      return null;
+    }
+
+    const requesterName = getDisplayName(profile.user);
+
+    return (
+      <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-semibold text-amber-900">
+            {requesterName} requested to follow you
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <button
+              className="rounded-md bg-gray-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
+              type="button"
+              disabled={pendingFollowRequestAction !== null}
+              onClick={() => void handleFollowRequestAction("accept")}
+            >
+              {pendingFollowRequestAction === "accept" ? "Accepting..." : "Accept"}
+            </button>
+            <button
+              className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 transition hover:border-gray-400 hover:bg-gray-100 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400"
+              type="button"
+              disabled={pendingFollowRequestAction !== null}
+              onClick={() => void handleFollowRequestAction("decline")}
+            >
+              {pendingFollowRequestAction === "decline" ? "Declining..." : "Decline"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   function renderFollowAction() {
@@ -1281,29 +1325,6 @@ export function UserProfilePage() {
         >
           Requested
         </button>
-      );
-    }
-
-    if (profile.user.followStatus === "REQUESTED_ME") {
-      return (
-        <div className="flex flex-wrap gap-3">
-          <button
-            className="rounded-md bg-gray-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
-            type="button"
-            disabled={pendingFollowRequestAction !== null}
-            onClick={() => void handleFollowRequestAction("accept")}
-          >
-            {pendingFollowRequestAction === "accept" ? "Accepting..." : "Accept"}
-          </button>
-          <button
-            className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 transition hover:border-gray-400 hover:bg-gray-100 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400"
-            type="button"
-            disabled={pendingFollowRequestAction !== null}
-            onClick={() => void handleFollowRequestAction("decline")}
-          >
-            {pendingFollowRequestAction === "decline" ? "Declining..." : "Decline"}
-          </button>
-        </div>
       );
     }
 
@@ -1679,6 +1700,8 @@ export function UserProfilePage() {
                 {renderFollowAction()}
               </div>
             </div>
+
+            {renderIncomingFollowRequestBanner()}
           </section>
 
           {successMessage ? (

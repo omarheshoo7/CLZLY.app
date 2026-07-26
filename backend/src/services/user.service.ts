@@ -348,14 +348,13 @@ export async function searchUsers({ query, searcherUserId }: SearchUsersInput) {
         ? "FOLLOWING"
         : outgoingFollowStatus === "PENDING"
           ? "REQUESTED"
-          : incomingFollowRequestId
-            ? "REQUESTED_ME"
           : "NONE";
 
     return {
       ...user,
       followStatus,
-      followRequestId: followStatus === "REQUESTED_ME" ? incomingFollowRequestId : null
+      followRequestId: null,
+      incomingFollowRequestId
     };
   });
 }
@@ -1212,6 +1211,7 @@ export async function getUserProfile({ params, viewerUserId }: GetUserProfileInp
   const isOwnProfile = user.id === viewerUserId;
   let followStatus: ProfileFollowStatus = "SELF";
   let followRequestId: string | null = null;
+  let incomingFollowRequestId: string | null = null;
 
   if (!isOwnProfile) {
     const [existingFollow, incomingFollowRequest] = await Promise.all([
@@ -1242,10 +1242,8 @@ export async function getUserProfile({ params, viewerUserId }: GetUserProfileInp
       ? "FOLLOWING"
       : existingFollow?.status === "PENDING"
         ? "REQUESTED"
-        : incomingFollowRequest
-          ? "REQUESTED_ME"
         : "NONE";
-    followRequestId = followStatus === "REQUESTED_ME" ? incomingFollowRequest?.id ?? null : null;
+    incomingFollowRequestId = incomingFollowRequest?.id ?? null;
   }
 
   const canViewPosts = isOwnProfile || !user.isPrivate || followStatus === "FOLLOWING";
@@ -1282,7 +1280,8 @@ export async function getUserProfile({ params, viewerUserId }: GetUserProfileInp
     user: {
       ...safeProfile,
       followStatus,
-      followRequestId
+      followRequestId,
+      incomingFollowRequestId
     },
     canViewPosts,
     stats: {

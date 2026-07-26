@@ -145,6 +145,7 @@ export type SearchUser = {
   createdAt: string;
   followStatus: UserFollowStatus;
   followRequestId: string | null;
+  incomingFollowRequestId: string | null;
 };
 
 export type SearchUsersData = {
@@ -161,6 +162,7 @@ export type UserProfile = {
   createdAt: string;
   followStatus: UserFollowStatus;
   followRequestId: string | null;
+  incomingFollowRequestId: string | null;
 };
 
 export type UserProfileStats = {

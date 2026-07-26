@@ -174,7 +174,7 @@ export function SearchPage() {
       );
     }
 
-    if (user.followStatus === "REQUESTED_ME") {
+    if (user.incomingFollowRequestId || user.followStatus === "REQUESTED_ME") {
       return (
         <Link
           className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 transition hover:border-gray-400 hover:bg-gray-100"
