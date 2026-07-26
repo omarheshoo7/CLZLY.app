@@ -299,6 +299,11 @@ export type UpdateCurrentUserData = {
   user: User;
 };
 
+export type UploadProfilePictureData = {
+  user: User;
+  profilePictureUrl: string;
+};
+
 type GetFeedParams = {
   cursor?: string;
   limit?: number;
@@ -423,6 +428,43 @@ export async function updateMyPrivacyApi(
     token: accessToken,
     body: input
   });
+}
+
+export async function uploadProfilePictureApi(
+  accessToken: string,
+  file: File
+) {
+  const formData = new FormData();
+  formData.append("profilePicture", file);
+
+  const response = await fetch(`${API_BASE_URL}/users/me/profile-picture`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    },
+    body: formData
+  });
+  const text = await response.text();
+  let payload: ApiResponse<UploadProfilePictureData> | ApiErrorBody | null = null;
+
+  if (text) {
+    try {
+      payload = JSON.parse(text) as ApiResponse<UploadProfilePictureData> | ApiErrorBody;
+    } catch {
+      payload = null;
+    }
+  }
+
+  if (!response.ok) {
+    const errorBody = payload as ApiErrorBody | null;
+    throw new ApiError(
+      errorBody?.message ?? "Could not upload profile picture.",
+      response.status,
+      errorBody?.errors
+    );
+  }
+
+  return payload as ApiResponse<UploadProfilePictureData>;
 }
 
 export async function searchUsersApi(accessToken: string, q: string) {

@@ -82,6 +82,11 @@ type UpdateCurrentUserPrivacyServiceInput = {
   data: UpdateCurrentUserPrivacyInput;
 };
 
+type UpdateCurrentUserProfilePictureInput = {
+  userId: string;
+  profilePictureUrl: string;
+};
+
 type RecordSearchHistoryInput = {
   searcherUserId: string;
   users: PublicUserCard[];
@@ -1314,4 +1319,50 @@ export async function updateCurrentUserPrivacy({ userId, data }: UpdateCurrentUs
   }
 
   return user;
+}
+
+export async function updateCurrentUserProfilePicture({
+  userId,
+  profilePictureUrl
+}: UpdateCurrentUserProfilePictureInput) {
+  const currentUser = await prisma.user.findUnique({
+    where: {
+      id: userId
+    },
+    select: {
+      isDisabled: true,
+      deletedAt: true
+    }
+  });
+
+  if (!currentUser || currentUser.deletedAt) {
+    throw new AppError("Invalid access token", 401);
+  }
+
+  if (currentUser.isDisabled) {
+    throw new AppError("Account has been disabled", 403);
+  }
+
+  return prisma.user.update({
+    where: {
+      id: userId
+    },
+    data: {
+      profilePictureUrl
+    },
+    select: {
+      id: true,
+      username: true,
+      email: true,
+      displayName: true,
+      bio: true,
+      profilePictureUrl: true,
+      isPrivate: true,
+      isAdmin: true,
+      isDisabled: true,
+      deletedAt: true,
+      createdAt: true,
+      updatedAt: true
+    }
+  });
 }

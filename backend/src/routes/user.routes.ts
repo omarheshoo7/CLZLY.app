@@ -17,10 +17,12 @@ import {
   searchUserProfiles,
   unfollowUser,
   updateMyPrivacy,
-  updateMyProfile
+  updateMyProfile,
+  uploadMyProfilePicture
 } from "../controllers/user.controller";
 import { getProfilePostsHandler } from "../controllers/post.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
+import { uploadProfilePicture } from "../middleware/upload.middleware";
 import { validateRequest } from "../middleware/validate.middleware";
 import {
   followRequestParamsSchema,
@@ -34,6 +36,13 @@ import {
 import { profilePostsQuerySchema } from "../schemas/post.schema";
 
 const router = Router();
+
+router.post(
+  "/me/profile-picture",
+  authMiddleware,
+  uploadProfilePicture,
+  uploadMyProfilePicture
+);
 
 router.patch(
   "/me/privacy",

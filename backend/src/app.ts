@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import { uploadsRoot } from "./middleware/upload.middleware";
 import { env } from "./config/env";
 import healthRoutes from "./routes/health.routes";
 import devRoutes from "./routes/dev.routes";
@@ -22,6 +23,7 @@ app.use(
   })
 );
 app.use(requestLogger);
+app.use("/uploads", express.static(uploadsRoot));
 
 app.use("/api/health", healthRoutes);
 app.use("/api/auth", authRoutes);

@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
 import {
+  uploadProfilePictureApi,
   updateMyPrivacyApi,
   updateMyProfileApi,
   type UpdateMyProfileInput
@@ -36,6 +37,11 @@ export function ProfilePlaceholderPage() {
   const [profileErrorMessage, setProfileErrorMessage] = useState<string | null>(null);
   const [privacySuccessMessage, setPrivacySuccessMessage] = useState<string | null>(null);
   const [privacyErrorMessage, setPrivacyErrorMessage] = useState<string | null>(null);
+  const [selectedProfilePictureFile, setSelectedProfilePictureFile] = useState<File | null>(null);
+  const [isUploadingProfilePicture, setIsUploadingProfilePicture] = useState(false);
+  const [profilePictureUploadSuccessMessage, setProfilePictureUploadSuccessMessage] = useState<string | null>(null);
+  const [profilePictureUploadErrorMessage, setProfilePictureUploadErrorMessage] = useState<string | null>(null);
+  const profilePictureInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -143,6 +149,44 @@ export function ProfilePlaceholderPage() {
   function handleProfilePictureUrlChange(value: string) {
     setProfilePictureUrl(value);
     setHasAvatarError(false);
+    setProfilePictureUploadSuccessMessage(null);
+    setProfilePictureUploadErrorMessage(null);
+  }
+
+  function handleProfilePictureFileChange(event: ChangeEvent<HTMLInputElement>) {
+    setSelectedProfilePictureFile(event.target.files?.[0] ?? null);
+    setProfilePictureUploadSuccessMessage(null);
+    setProfilePictureUploadErrorMessage(null);
+  }
+
+  async function handleProfilePictureUpload() {
+    if (!accessToken || !selectedProfilePictureFile || isUploadingProfilePicture) {
+      return;
+    }
+
+    setIsUploadingProfilePicture(true);
+    setProfilePictureUploadSuccessMessage(null);
+    setProfilePictureUploadErrorMessage(null);
+
+    try {
+      const response = await uploadProfilePictureApi(accessToken, selectedProfilePictureFile);
+
+      setProfilePictureUrl(response.data.profilePictureUrl);
+      setHasAvatarError(false);
+      syncProfileFormFromUser(response.data.user);
+      await refreshSession();
+      setSelectedProfilePictureFile(null);
+
+      if (profilePictureInputRef.current) {
+        profilePictureInputRef.current.value = "";
+      }
+
+      setProfilePictureUploadSuccessMessage("Profile picture uploaded successfully.");
+    } catch {
+      setProfilePictureUploadErrorMessage("Could not upload profile picture.");
+    } finally {
+      setIsUploadingProfilePicture(false);
+    }
   }
 
   return (
@@ -224,6 +268,53 @@ export function ProfilePlaceholderPage() {
                 setProfileErrorMessage(null);
               }}
             />
+          </div>
+
+          <div className="rounded-md border border-gray-200 bg-gray-50 p-4">
+            <p className="text-sm font-medium text-gray-800">Upload profile picture</p>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <label
+                className="inline-flex cursor-pointer rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-800 transition hover:bg-gray-100"
+                htmlFor="profile-picture-upload"
+              >
+                Choose image
+              </label>
+              <input
+                ref={profilePictureInputRef}
+                id="profile-picture-upload"
+                className="sr-only"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                disabled={isUploadingProfilePicture}
+                onChange={handleProfilePictureFileChange}
+              />
+              <span className="min-w-0 break-words text-sm text-gray-600">
+                {selectedProfilePictureFile?.name ?? "No image selected"}
+              </span>
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button
+                className="rounded-md bg-gray-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
+                type="button"
+                disabled={!accessToken || !selectedProfilePictureFile || isUploadingProfilePicture}
+                onClick={handleProfilePictureUpload}
+              >
+                {isUploadingProfilePicture ? "Uploading..." : "Upload profile picture"}
+              </button>
+
+              {profilePictureUploadSuccessMessage ? (
+                <p className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+                  {profilePictureUploadSuccessMessage}
+                </p>
+              ) : null}
+
+              {profilePictureUploadErrorMessage ? (
+                <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {profilePictureUploadErrorMessage}
+                </p>
+              ) : null}
+            </div>
           </div>
 
           <div>

@@ -18,7 +18,8 @@ import {
   searchUsers,
   unfollowUser as removeFollowRelationship,
   updateCurrentUserPrivacy,
-  updateCurrentUserProfile
+  updateCurrentUserProfile,
+  updateCurrentUserProfilePicture
 } from "../services/user.service";
 import type {
   FollowRequestParams,
@@ -422,6 +423,37 @@ export async function updateMyPrivacy(req: Request, res: Response, next: NextFun
       message: "Account privacy updated successfully",
       data: {
         user
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function uploadMyProfilePicture(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user) {
+      throw new AppError("Authorization is required", 401);
+    }
+
+    if (!req.file) {
+      throw new AppError("No file uploaded", 400);
+    }
+
+    const requestHost = req.get("host");
+    const origin = requestHost ? `${req.protocol}://${requestHost}` : "http://localhost:3000";
+    const profilePictureUrl = `${origin}/uploads/profile-pictures/${req.file.filename}`;
+    const user = await updateCurrentUserProfilePicture({
+      userId: req.user.userId,
+      profilePictureUrl
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Profile picture uploaded successfully",
+      data: {
+        user,
+        profilePictureUrl
       }
     });
   } catch (error) {
