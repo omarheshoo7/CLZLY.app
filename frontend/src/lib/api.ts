@@ -133,7 +133,7 @@ export type AcceptFollowRequestData = {
   follow: unknown;
 };
 
-export type UserFollowStatus = "SELF" | "FOLLOWING" | "REQUESTED" | "NONE";
+export type UserFollowStatus = "SELF" | "FOLLOWING" | "REQUESTED" | "REQUESTED_ME" | "NONE";
 
 export type SearchUser = {
   id: string;
@@ -144,6 +144,7 @@ export type SearchUser = {
   isPrivate: boolean;
   createdAt: string;
   followStatus: UserFollowStatus;
+  followRequestId: string | null;
 };
 
 export type SearchUsersData = {
@@ -159,6 +160,7 @@ export type UserProfile = {
   isPrivate: boolean;
   createdAt: string;
   followStatus: UserFollowStatus;
+  followRequestId: string | null;
 };
 
 export type UserProfileStats = {

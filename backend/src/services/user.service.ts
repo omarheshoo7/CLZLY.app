@@ -44,7 +44,7 @@ type SearchHistoryUser = Prisma.UserGetPayload<{
   select: typeof searchHistoryUserSelect;
 }>;
 
-type ProfileFollowStatus = "SELF" | "FOLLOWING" | "REQUESTED" | "NONE";
+type ProfileFollowStatus = "SELF" | "FOLLOWING" | "REQUESTED" | "REQUESTED_ME" | "NONE";
 
 type SearchUsersInput = {
   query: UserSearchQuery;
@@ -305,34 +305,57 @@ export async function searchUsers({ query, searcherUserId }: SearchUsersInput) {
   });
 
   const userIds = users.map((user) => user.id);
-  const follows = userIds.length > 0
-    ? await prisma.follow.findMany({
-        where: {
-          followerId: searcherUserId,
-          followingId: {
-            in: userIds
+  const [outgoingFollows, incomingFollowRequests] = userIds.length > 0
+    ? await Promise.all([
+        prisma.follow.findMany({
+          where: {
+            followerId: searcherUserId,
+            followingId: {
+              in: userIds
+            }
+          },
+          select: {
+            followingId: true,
+            status: true
           }
-        },
-        select: {
-          followingId: true,
-          status: true
-        }
-      })
-    : [];
-  const followByUserId = new Map(follows.map((follow) => [follow.followingId, follow.status]));
+        }),
+        prisma.follow.findMany({
+          where: {
+            followerId: {
+              in: userIds
+            },
+            followingId: searcherUserId,
+            status: "PENDING"
+          },
+          select: {
+            id: true,
+            followerId: true
+          }
+        })
+      ])
+    : [[], []];
+  const outgoingFollowByUserId = new Map(outgoingFollows.map((follow) => [follow.followingId, follow.status]));
+  const incomingFollowRequestByUserId = new Map(
+    incomingFollowRequests.map((followRequest) => [followRequest.followerId, followRequest.id])
+  );
 
   return users.map((user) => {
+    const outgoingFollowStatus = outgoingFollowByUserId.get(user.id);
+    const incomingFollowRequestId = incomingFollowRequestByUserId.get(user.id) ?? null;
     const followStatus: ProfileFollowStatus = user.id === searcherUserId
       ? "SELF"
-      : followByUserId.get(user.id) === "ACCEPTED"
+      : outgoingFollowStatus === "ACCEPTED"
         ? "FOLLOWING"
-        : followByUserId.get(user.id) === "PENDING"
+        : outgoingFollowStatus === "PENDING"
           ? "REQUESTED"
+          : incomingFollowRequestId
+            ? "REQUESTED_ME"
           : "NONE";
 
     return {
       ...user,
-      followStatus
+      followStatus,
+      followRequestId: followStatus === "REQUESTED_ME" ? incomingFollowRequestId : null
     };
   });
 }
@@ -1188,25 +1211,41 @@ export async function getUserProfile({ params, viewerUserId }: GetUserProfileInp
 
   const isOwnProfile = user.id === viewerUserId;
   let followStatus: ProfileFollowStatus = "SELF";
+  let followRequestId: string | null = null;
 
   if (!isOwnProfile) {
-    const existingFollow = await prisma.follow.findUnique({
-      where: {
-        followerId_followingId: {
-          followerId: viewerUserId,
-          followingId: user.id
+    const [existingFollow, incomingFollowRequest] = await Promise.all([
+      prisma.follow.findUnique({
+        where: {
+          followerId_followingId: {
+            followerId: viewerUserId,
+            followingId: user.id
+          }
+        },
+        select: {
+          status: true
         }
-      },
-      select: {
-        status: true
-      }
-    });
+      }),
+      prisma.follow.findFirst({
+        where: {
+          followerId: user.id,
+          followingId: viewerUserId,
+          status: "PENDING"
+        },
+        select: {
+          id: true
+        }
+      })
+    ]);
 
     followStatus = existingFollow?.status === "ACCEPTED"
       ? "FOLLOWING"
       : existingFollow?.status === "PENDING"
         ? "REQUESTED"
+        : incomingFollowRequest
+          ? "REQUESTED_ME"
         : "NONE";
+    followRequestId = followStatus === "REQUESTED_ME" ? incomingFollowRequest?.id ?? null : null;
   }
 
   const canViewPosts = isOwnProfile || !user.isPrivate || followStatus === "FOLLOWING";
@@ -1242,7 +1281,8 @@ export async function getUserProfile({ params, viewerUserId }: GetUserProfileInp
   return {
     user: {
       ...safeProfile,
-      followStatus
+      followStatus,
+      followRequestId
     },
     canViewPosts,
     stats: {

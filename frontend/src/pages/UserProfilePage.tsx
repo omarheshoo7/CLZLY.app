@@ -4,6 +4,7 @@ import { useAuth } from "../auth/AuthContext";
 import { PostCard } from "../components/PostCard";
 import {
   ApiError,
+  acceptFollowRequestApi,
   createCommentApi,
   deleteCommentApi,
   deletePostApi,
@@ -16,6 +17,7 @@ import {
   hidePostApi,
   isPendingFollowRequestError,
   likePostApi,
+  rejectFollowRequestApi,
   savePostApi,
   unlikePostApi,
   unfollowUserApi,
@@ -89,6 +91,8 @@ export function UserProfilePage() {
   const [profile, setProfile] = useState<UserProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isFollowActionPending, setIsFollowActionPending] = useState(false);
+  const [pendingFollowRequestAction, setPendingFollowRequestAction] =
+    useState<"accept" | "decline" | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -182,6 +186,21 @@ export function UserProfilePage() {
       isCurrentRequest = false;
     };
   }, [accessToken, username]);
+
+  async function refreshProfile() {
+    if (!accessToken || !username) {
+      throw new Error("Profile cannot be refreshed");
+    }
+
+    const response = await getUserProfileApi(accessToken, username);
+
+    setProfile(response.data);
+    setSocialGraphUsers([]);
+    setSocialGraphPagination(emptySocialGraphPagination);
+    setSocialGraphErrorMessage(null);
+    setLoadMoreSocialGraphErrorMessage(null);
+    setIsSocialGraphPrivate(false);
+  }
 
   useEffect(() => {
     currentProfileUsernameRef.current = profile?.user.username ?? null;
@@ -1205,6 +1224,41 @@ export function UserProfilePage() {
     }
   }
 
+  async function handleFollowRequestAction(action: "accept" | "decline") {
+    if (
+      !accessToken ||
+      !profile ||
+      profile.user.followStatus !== "REQUESTED_ME" ||
+      !profile.user.followRequestId ||
+      pendingFollowRequestAction
+    ) {
+      return;
+    }
+
+    const followRequestId = profile.user.followRequestId;
+
+    setPendingFollowRequestAction(action);
+    setSuccessMessage(null);
+    setErrorMessage(null);
+
+    try {
+      if (action === "accept") {
+        await acceptFollowRequestApi(accessToken, followRequestId);
+      } else {
+        await rejectFollowRequestApi(accessToken, followRequestId);
+      }
+
+      await refreshProfile();
+      setSuccessMessage(
+        action === "accept" ? "Follow request accepted." : "Follow request declined."
+      );
+    } catch {
+      setErrorMessage("Could not update follow request.");
+    } finally {
+      setPendingFollowRequestAction(null);
+    }
+  }
+
   function renderFollowAction() {
     if (!profile) {
       return null;
@@ -1227,6 +1281,29 @@ export function UserProfilePage() {
         >
           Requested
         </button>
+      );
+    }
+
+    if (profile.user.followStatus === "REQUESTED_ME") {
+      return (
+        <div className="flex flex-wrap gap-3">
+          <button
+            className="rounded-md bg-gray-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
+            type="button"
+            disabled={pendingFollowRequestAction !== null}
+            onClick={() => void handleFollowRequestAction("accept")}
+          >
+            {pendingFollowRequestAction === "accept" ? "Accepting..." : "Accept"}
+          </button>
+          <button
+            className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 transition hover:border-gray-400 hover:bg-gray-100 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400"
+            type="button"
+            disabled={pendingFollowRequestAction !== null}
+            onClick={() => void handleFollowRequestAction("decline")}
+          >
+            {pendingFollowRequestAction === "decline" ? "Declining..." : "Decline"}
+          </button>
+        </div>
       );
     }
 
